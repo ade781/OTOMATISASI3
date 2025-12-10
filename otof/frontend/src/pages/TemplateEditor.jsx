@@ -10,24 +10,33 @@ const TemplateEditor = () => {
   const roleKey = user?.role ? `customTemplates:${user.role}` : 'customTemplates';
   const versionKey = (id) => `templateVersions:${id}:${user?.role || 'anon'}`;
   const draftKey = (id) => `templateDraft:${id}:${user?.role || 'anon'}`;
-
-  const [customTemplates, setCustomTemplates] = useState(() => {
+  const readTemplates = (key) => {
     try {
-      const stored = localStorage.getItem(roleKey);
-      return stored ? JSON.parse(stored) : [];
+      const stored = localStorage.getItem(key);
+      if (stored) return JSON.parse(stored);
+      if (key !== 'customTemplates') {
+        const legacy = localStorage.getItem('customTemplates');
+        if (legacy) return JSON.parse(legacy);
+      }
+      return [];
     } catch (err) {
       return [];
     }
-  });
+  };
+
+  const [customTemplates, setCustomTemplates] = useState(() => readTemplates(roleKey));
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(roleKey);
-      setCustomTemplates(stored ? JSON.parse(stored) : []);
-    } catch (err) {
-      setCustomTemplates([]);
+    const data = readTemplates(roleKey);
+    setCustomTemplates(data);
+    if (roleKey !== 'customTemplates') {
+      try {
+        localStorage.setItem(roleKey, JSON.stringify(data));
+      } catch (err) {
+        // ignore
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks-exhaustive-deps
   }, [roleKey]);
 
   const defaultIds = useMemo(() => new Set(DEFAULT_TEMPLATES.map((t) => t.id)), []);
@@ -51,6 +60,7 @@ const TemplateEditor = () => {
   const [toast, setToast] = useState('');
   const [history, setHistory] = useState([]);
   const [future, setFuture] = useState([]);
+  const [confirmingSave, setConfirmingSave] = useState(false);
 
   const autosaveTimer = useRef(null);
 
@@ -109,6 +119,7 @@ const TemplateEditor = () => {
     setBody(draft?.body ?? tpl.body);
     setHistory([]);
     setFuture([]);
+    setConfirmingSave(false);
   }, [selectedTemplateId, templates]);
 
   const snapshot = () => ({
@@ -154,7 +165,7 @@ const TemplateEditor = () => {
     });
   };
 
-  const handleSave = () => {
+  const saveTemplate = () => {
     if (!name.trim() || !subject.trim() || !body.trim()) {
       setToast('Nama, subjek, dan body wajib diisi.');
       return;
@@ -185,22 +196,20 @@ const TemplateEditor = () => {
     setSelectedTemplateId(targetId);
     setIsNew(false);
     setToast(isExistingCustom || isDefaultSelected ? 'Template diperbarui.' : 'Template baru dibuat.');
+    setConfirmingSave(false);
+  };
+  const handleSaveClick = () => {
+    setConfirmingSave(true);
   };
 
   const isDeletable = useMemo(
     () => customTemplates.some((t) => t.id === selectedTemplateId),
     [customTemplates, selectedTemplateId]
   );
-<<<<<<< ours
-<<<<<<< ours
   const overwriteWarning =
     !isNew && (defaultIds.has(selectedTemplateId) || customTemplates.some((t) => t.id === selectedTemplateId))
       ? 'Menyimpan akan menimpa template ini.'
       : 'Simpan untuk membuat template baru.';
-=======
->>>>>>> theirs
-=======
->>>>>>> theirs
 
   const handleDelete = () => {
     if (!isDeletable) {
@@ -279,7 +288,8 @@ const TemplateEditor = () => {
   }, [body]);
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-r from-primary/10 via-white to-slate-50 p-6 shadow-soft">
         <div className="absolute inset-0 pointer-events-none opacity-40 bg-[radial-gradient(circle_at_20%_20%,#34d399,transparent_30%)]" />
         <div className="relative flex items-start justify-between gap-4">
@@ -355,71 +365,66 @@ const TemplateEditor = () => {
               </h2>
               <p className="text-xs text-slate-500">Simpan untuk membuat/overwrite template kustom.</p>
             </div>
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={handleUndo}
-                disabled={!history.length}
-                className={`px-3 py-1.5 rounded-xl border text-sm ${
-                  history.length ? 'border-slate-200 text-slate-700 hover:bg-slate-50' : 'border-slate-100 text-slate-400 cursor-not-allowed'
-                }`}
-              >
-                Undo
-              </button>
-              <button
-                onClick={handleRedo}
-                disabled={!future.length}
-                className={`px-3 py-1.5 rounded-xl border text-sm ${
-                  future.length ? 'border-slate-200 text-slate-700 hover:bg-slate-50' : 'border-slate-100 text-slate-400 cursor-not-allowed'
-                }`}
-              >
-                Redo
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={!isDeletable}
-                className={`px-3 py-1.5 rounded-xl border text-sm ${
-                  isDeletable
-                    ? 'border-rose-200 text-rose-700 hover:bg-rose-50'
-                    : 'border-slate-200 text-slate-400 cursor-not-allowed'
-                }`}
-              >
-                Hapus
-              </button>
-              <button
-                onClick={handleReset}
-                className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 text-sm hover:bg-slate-50"
-              >
-                Reset
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-3.5 py-1.5 rounded-xl bg-primary text-white font-semibold shadow-soft hover:bg-emerald-700 text-sm"
-              >
-                Simpan
-              </button>
-<<<<<<< ours
-              {toast && (
-                <span className="text-sm px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700">
-                  {toast}
+            <div className="flex flex-col items-end gap-2 w-full">
+              <div className="flex gap-2 flex-wrap items-center justify-end">
+                <button
+                  onClick={handleUndo}
+                  disabled={!history.length}
+                  className={`px-3 py-1.5 rounded-xl border text-sm ${
+                    history.length ? 'border-slate-200 text-slate-700 hover:bg-slate-50' : 'border-slate-100 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  Undo
+                </button>
+                <button
+                  onClick={handleRedo}
+                  disabled={!future.length}
+                  className={`px-3 py-1.5 rounded-xl border text-sm ${
+                    future.length ? 'border-slate-200 text-slate-700 hover:bg-slate-50' : 'border-slate-100 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  Redo
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={!isDeletable}
+                  className={`px-3 py-1.5 rounded-xl border text-sm ${
+                    isDeletable
+                      ? 'border-rose-200 text-rose-700 hover:bg-rose-50'
+                      : 'border-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  Hapus
+                </button>
+                <button
+                  onClick={handleReset}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 text-sm hover:bg-slate-50"
+                >
+                  Reset
+                </button>
+                <button
+                  onClick={handleSaveClick}
+                  className="px-3.5 py-1.5 rounded-xl bg-primary text-white font-semibold shadow-soft hover:bg-emerald-700 text-sm"
+                >
+                  Simpan
+                </button>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap justify-end min-h-[32px]">
+                {toast && (
+                  <span className="text-sm px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700">
+                    {toast}
+                  </span>
+                )}
+                <span
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-xl border ${
+                    overwriteWarning.includes('menimpa')
+                      ? 'bg-amber-50 border-amber-200 text-amber-700'
+                      : 'bg-slate-50 border-slate-200 text-slate-600'
+                  }`}
+                >
+                  {overwriteWarning}
                 </span>
-              )}
-<<<<<<< ours
-<<<<<<< ours
-              <span
-                className={`text-xs font-semibold px-3 py-1.5 rounded-xl border ${
-                  overwriteWarning.includes('menimpa')
-                    ? 'bg-amber-50 border-amber-200 text-amber-700'
-                    : 'bg-slate-50 border-slate-200 text-slate-600'
-                }`}
-              >
-                {overwriteWarning}
-              </span>
-=======
->>>>>>> theirs
-=======
->>>>>>> theirs
-=======
->>>>>>> theirs
+              </div>
             </div>
           </div>
 
@@ -558,7 +563,43 @@ const TemplateEditor = () => {
         </div>
       </div>
     </div>
+
+      {confirmingSave && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-3 border border-slate-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Simpan template?</h3>
+                <p className="text-sm text-slate-600">
+                  Perubahan akan {overwriteWarning.includes('menimpa') ? 'menimpa template ini.' : 'membuat template baru.'}
+                </p>
+              </div>
+              <button
+                onClick={() => setConfirmingSave(false)}
+                className="text-slate-500 hover:text-slate-800 text-xl font-bold"
+                aria-label="Tutup"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={saveTemplate}
+                className="px-4 py-2 rounded-xl bg-primary text-white font-semibold shadow-soft hover:bg-emerald-700"
+              >
+                Ya, simpan
+              </button>
+              <button
+                onClick={() => setConfirmingSave(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
-export default TemplateEditor;

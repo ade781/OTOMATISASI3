@@ -7,6 +7,8 @@ import BadanPublik from './pages/BadanPublik';
 import HistoryLog from './pages/HistoryLog';
 import TemplateEditor from './pages/TemplateEditor';
 import Settings from './pages/Settings';
+import AddUser from './pages/AddUser';
+import Penugasan from './pages/Penugasan';
 
 const App = () => {
   return (
@@ -20,6 +22,8 @@ const App = () => {
             <Route path="/badan-publik" element={<BadanPublik />} />
             <Route path="/history" element={<HistoryLog />} />
             <Route path="/templates" element={<TemplateEditor />} />
+            <Route path="/penugasan" element={<Penugasan />} />
+            <Route path="/users" element={<AddUser />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
         </Route>

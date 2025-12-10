@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import * as XLSX from 'xlsx';
 
 const emptyForm = {
   nama_badan_publik: '',
@@ -8,8 +9,19 @@ const emptyForm = {
   email: '',
   website: '',
   pertanyaan: '',
-  status: 'pending'
+  status: 'pending',
+  thread_id: ''
 };
+
+const expectedHeaders = [
+  'Nama Badan Publik',
+  'Kategori',
+  'Website',
+  'Pertanyaan',
+  'Email',
+  'Status',
+  'Thread Id'
+];
 
 const BadanPublik = () => {
   const { user } = useAuth();
@@ -21,6 +33,9 @@ const BadanPublik = () => {
   const [formData, setFormData] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
+  const [importPreview, setImportPreview] = useState([]);
+  const [importError, setImportError] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
@@ -38,6 +53,8 @@ const BadanPublik = () => {
     fetchData();
   }, []);
 
+  const samplePreview = useMemo(() => data.slice(0, 5), [data]);
+
   const openForm = (item) => {
     if (item) {
       setEditingId(item.id);
@@ -47,7 +64,8 @@ const BadanPublik = () => {
         email: item.email,
         website: item.website || '',
         pertanyaan: item.pertanyaan || '',
-        status: item.status
+        status: item.status,
+        thread_id: item.thread_id || ''
       });
     } else {
       setEditingId(null);
@@ -84,6 +102,70 @@ const BadanPublik = () => {
     }
   };
 
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportError('');
+    setImportPreview([]);
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      if (!rows.length) {
+        setImportError('File kosong.');
+        return;
+      }
+      const header = rows[0].map((h) => String(h || '').trim());
+      const normalizedHeader = header.map((h) => h.toLowerCase());
+      const normalizedExpected = expectedHeaders.map((h) => h.toLowerCase());
+
+      const headerValid =
+        normalizedHeader.length >= normalizedExpected.length &&
+        normalizedExpected.every((h) => normalizedHeader.includes(h));
+
+      if (!headerValid) {
+        setImportError('Struktur header tidak sesuai. Ikuti contoh template.');
+        return;
+      }
+
+      const dataRows = rows.slice(1).filter((r) => r.some((cell) => cell));
+      const objs = dataRows.map((r) => {
+        const map = Object.fromEntries(header.map((h, idx) => [h, r[idx]]));
+        return {
+          nama_badan_publik: map['Nama Badan Publik'] || '',
+          kategori: map['Kategori'] || '',
+          website: map['Website'] || '',
+          pertanyaan: map['Pertanyaan'] || '',
+          email: map['Email'] || '',
+          status: map['Status'] || 'pending',
+          thread_id: map['Thread Id'] || ''
+        };
+      });
+
+      setImportPreview(objs.slice(0, 5));
+    } catch (err) {
+      console.error(err);
+      setImportError('Gagal membaca file. Pastikan format CSV/XLSX.');
+    }
+  };
+
+  const submitImport = async () => {
+    if (importPreview.length === 0) {
+      setImportError('Tidak ada data untuk diimport.');
+      return;
+    }
+    try {
+      await api.post('/badan-publik/import', { records: importPreview });
+      setImportError('');
+      setImportOpen(false);
+      setStatusMessage(`Import berhasil (${importPreview.length} data contoh; total mengikuti file).`);
+      fetchData();
+    } catch (err) {
+      setImportError(err.response?.data?.message || 'Gagal import data');
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -92,12 +174,20 @@ const BadanPublik = () => {
           <h1 className="text-2xl font-bold text-slate-900">Badan Publik</h1>
         </div>
         {isAdmin && (
-          <button
-            onClick={() => openForm(null)}
-            className="bg-primary text-white px-4 py-3 rounded-xl font-semibold shadow-soft hover:bg-emerald-700"
-          >
-            Tambah Data
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setImportOpen(true)}
+              className="bg-slate-900 text-white px-4 py-3 rounded-xl font-semibold shadow-soft hover:bg-slate-800"
+            >
+              Import CSV/Excel
+            </button>
+            <button
+              onClick={() => openForm(null)}
+              className="bg-primary text-white px-4 py-3 rounded-xl font-semibold shadow-soft hover:bg-emerald-700"
+            >
+              Tambah Data
+            </button>
+          </div>
         )}
       </div>
 
@@ -114,8 +204,9 @@ const BadanPublik = () => {
                 <th className="px-4 py-3 text-left">Kategori</th>
                 <th className="px-4 py-3 text-left">Email</th>
                 <th className="px-4 py-3 text-left">Website</th>
-                <th className="px-4 py-3 text-left w-[420px]">Pertanyaan</th>
+                <th className="px-4 py-3 text-left w-[720px]">Pertanyaan</th>
                 <th className="px-4 py-3 text-left">Status</th>
+                <th className="px-4 py-3 text-left">Thread Id</th>
                 <th className="px-4 py-3 text-left">Sent</th>
                 {isAdmin && <th className="px-4 py-3 text-left">Aksi</th>}
               </tr>
@@ -123,13 +214,13 @@ const BadanPublik = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-slate-500" colSpan={isAdmin ? 7 : 6}>
+                  <td className="px-4 py-6 text-center text-slate-500" colSpan={isAdmin ? 8 : 7}>
                     Memuat data...
                   </td>
                 </tr>
               ) : data.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-slate-500" colSpan={isAdmin ? 7 : 6}>
+                  <td className="px-4 py-6 text-center text-slate-500" colSpan={isAdmin ? 8 : 7}>
                     Belum ada data.
                   </td>
                 </tr>
@@ -143,7 +234,7 @@ const BadanPublik = () => {
                     <td className="px-4 py-3 text-slate-700">{item.kategori}</td>
                     <td className="px-4 py-3 text-slate-700">{item.email}</td>
                     <td className="px-4 py-3 text-slate-700">{item.website || '-'}</td>
-                    <td className="px-4 py-3 text-slate-700 max-w-3xl whitespace-pre-wrap">{item.pertanyaan || '-'}</td>
+                    <td className="px-4 py-3 text-slate-700 max-w-7xl whitespace-pre-wrap">{item.pertanyaan || '-'}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -155,6 +246,7 @@ const BadanPublik = () => {
                         {item.status}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-slate-700">{item.thread_id || '-'}</td>
                     <td className="px-4 py-3 text-slate-700">{item.sent_count}</td>
                     {isAdmin && (
                       <td className="px-4 py-3 space-x-2">
@@ -192,7 +284,7 @@ const BadanPublik = () => {
                 className="text-slate-500 hover:text-slate-800 text-xl font-bold"
                 aria-label="Tutup"
               >
-                ×
+                Į-
               </button>
             </div>
             <form onSubmit={saveForm} className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -241,6 +333,22 @@ const BadanPublik = () => {
                   rows={3}
                 />
               </div>
+              <div className="col-span-1">
+                <label className="text-sm font-semibold text-slate-700">Status</label>
+                <input
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="mt-1 w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div className="col-span-1">
+                <label className="text-sm font-semibold text-slate-700">Thread Id</label>
+                <input
+                  value={formData.thread_id}
+                  onChange={(e) => setFormData({ ...formData, thread_id: e.target.value })}
+                  className="mt-1 w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
               <div className="col-span-2 flex justify-end gap-2">
                 <button
                   type="button"
@@ -257,6 +365,133 @@ const BadanPublik = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {importOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Import CSV/Excel</h2>
+                <p className="text-sm text-slate-600">
+                  Ikuti struktur header: {expectedHeaders.join(', ')}
+                </p>
+              </div>
+              <button
+                onClick={() => setImportOpen(false)}
+                className="text-slate-500 hover:text-slate-800 text-xl font-bold"
+              >
+                Į-
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Upload file</label>
+                <input
+                  type="file"
+                  accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                  onChange={handleImportFile}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-3"
+                />
+                {importError && (
+                  <div className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+                    {importError}
+                  </div>
+                )}
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-600">
+                <div className="font-semibold text-slate-800 mb-1">Contoh header</div>
+                <pre className="whitespace-pre-wrap text-xs text-slate-600">
+                  {expectedHeaders.join(' | ')}
+                </pre>
+                <p className="text-xs text-slate-500 mt-2">
+                  Pastikan baris pertama adalah header. Preview di bawah menampilkan 5 data pertama (biasanya termasuk header).
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="border-2 border-emerald-200 bg-emerald-50 rounded-xl p-3 shadow-soft">
+                <div className="inline-flex items-center gap-2 px-2 py-1 rounded-lg bg-white border border-emerald-200 text-[11px] font-bold text-emerald-700 mb-2">
+                  Contoh data (dari tabel saat ini)
+                </div>
+                <table className="w-full text-xs text-slate-700">
+                  <thead>
+                    <tr>
+                      <th className="text-left">Nama</th>
+                      <th className="text-left">Email</th>
+                      <th className="text-left">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {samplePreview.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="py-2 text-slate-500">
+                          Belum ada data.
+                        </td>
+                      </tr>
+                    ) : (
+                      samplePreview.map((row) => (
+                        <tr key={row.id}>
+                          <td className="py-1">{row.nama_badan_publik}</td>
+                          <td className="py-1">{row.email}</td>
+                          <td className="py-1">{row.status}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="border-2 border-sky-200 bg-sky-50 rounded-xl p-3 shadow-soft">
+                <div className="inline-flex items-center gap-2 px-2 py-1 rounded-lg bg-white border border-sky-200 text-[11px] font-bold text-sky-700 mb-2">
+                  Preview file (5 baris pertama)
+                </div>
+                <table className="w-full text-xs text-slate-700">
+                  <thead>
+                    <tr>
+                      <th className="text-left">Nama</th>
+                      <th className="text-left">Email</th>
+                      <th className="text-left">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {importPreview.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="py-2 text-slate-500">
+                          Upload file untuk melihat preview.
+                        </td>
+                      </tr>
+                    ) : (
+                      importPreview.slice(0, 5).map((row, idx) => (
+                        <tr key={idx}>
+                          <td className="py-1">{row.nama_badan_publik}</td>
+                          <td className="py-1">{row.email}</td>
+                          <td className="py-1">{row.status}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setImportOpen(false)}
+                className="px-4 py-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={submitImport}
+                className="px-5 py-3 rounded-xl bg-primary text-white font-semibold shadow-soft hover:bg-emerald-700"
+              >
+                Import
+              </button>
+            </div>
           </div>
         </div>
       )}

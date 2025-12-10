@@ -64,6 +64,7 @@ const SmtpModal = ({ open, onClose }) => {
               required
               value={emailAddress}
               onChange={(e) => setEmailAddress(e.target.value)}
+              autoComplete="username"
               className="mt-1 w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="nama@gmail.com"
             />
@@ -75,6 +76,7 @@ const SmtpModal = ({ open, onClose }) => {
               required
               value={appPassword}
               onChange={(e) => setAppPassword(e.target.value)}
+              autoComplete="new-password"
               className="mt-1 w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
               placeholder="16 digit app password"
             />

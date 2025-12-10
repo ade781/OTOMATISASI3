@@ -22,6 +22,20 @@ module.exports = (sequelize) => {
         type: DataTypes.ENUM('admin', 'user'),
         allowNull: false,
         defaultValue: 'user'
+      },
+      daily_quota: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 20
+      },
+      used_today: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0
+      },
+      last_reset_date: {
+        type: DataTypes.DATEONLY,
+        allowNull: true
       }
     },
     {

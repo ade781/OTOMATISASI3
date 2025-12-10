@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const { BadanPublik, EmailLog, SmtpConfig, User } = require('../models');
+const { BadanPublik, EmailLog, SmtpConfig, User, Assignment } = require('../models');
 const emailEventBus = require('../utils/eventBus');
 
 const ATTACHMENT_LIMIT_BYTES = 7 * 1024 * 1024;
@@ -17,6 +17,11 @@ const getAttachmentSize = (att) => {
     return Math.floor((att.content.length * 3) / 4);
   }
   return 0;
+};
+
+const isValidEmail = (val) => {
+  if (!val) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
 };
 
 const emitLog = async (logId) => {
@@ -64,6 +69,22 @@ const sendBulkEmail = async (req, res) => {
       return res.status(400).json({ message: 'Konfigurasi SMTP belum tersedia' });
     }
 
+    // Quota check
+    const user = await User.findByPk(userId);
+    if (!user) return res.status(400).json({ message: 'User tidak ditemukan' });
+    const today = new Date().toISOString().slice(0, 10);
+    if (user.last_reset_date !== today) {
+      user.used_today = 0;
+      user.last_reset_date = today;
+      await user.save();
+    }
+    const remaining = Math.max(user.daily_quota - user.used_today, 0);
+    if (badan_publik_ids.length > remaining) {
+      return res
+        .status(400)
+        .json({ message: `Kuota harian tersisa ${remaining}. Kurangi penerima atau ajukan kuota.` });
+    }
+
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -71,6 +92,15 @@ const sendBulkEmail = async (req, res) => {
         pass: smtpConfig.app_password
       }
     });
+    try {
+      await transporter.verify();
+    } catch (err) {
+      return res.status(400).json({
+        message:
+          'Login SMTP gagal. Periksa email + App Password Gmail, pastikan 2FA aktif dan IMAP diaktifkan.',
+        detail: err.message
+      });
+    }
 
     const results = [];
     const safeAttachments = Array.isArray(attachments)
@@ -105,30 +135,63 @@ const sendBulkEmail = async (req, res) => {
         .json({ message: 'Lampiran terlalu besar (>7MB). Kompres atau perkecil file KTP.' });
     }
 
+    const safeMeta = meta || {};
     const toHtml = (val) => {
-      if (!val) return '';
+      if (val == null) return '';
       return String(val).replace(/\n/g, '<br/>');
     };
 
-    const renderTemplate = (tpl, target) => {
-      if (!tpl) return '';
-      const replacements = {
-        '{{nama_badan_publik}}': target.nama_badan_publik || '',
-        '{{kategori}}': target.kategori || '',
-        '{{email}}': target.email || '',
-        '{{pertanyaan}}': toHtml(target.pertanyaan),
-        '{{pemohon}}': toHtml(meta?.pemohon),
-        '{{tujuan}}': toHtml(meta?.tujuan),
-        '{{tanggal}}': toHtml(meta?.tanggal || new Date().toLocaleDateString('id-ID'))
+    const buildReplacements = (target) => {
+      const base = {
+        nama_badan_publik: target?.nama_badan_publik || '',
+        kategori: target?.kategori || '',
+        email: target?.email || '',
+        pertanyaan: toHtml(target?.pertanyaan || ''),
+        pemohon: toHtml(safeMeta.pemohon),
+        tujuan: toHtml(safeMeta.tujuan),
+        tanggal: toHtml(safeMeta.tanggal || new Date().toLocaleDateString('id-ID')),
+        asal_kampus: toHtml(safeMeta.asal_kampus),
+        prodi: toHtml(safeMeta.prodi),
+        nama_media: toHtml(safeMeta.nama_media),
+        deadline: toHtml(safeMeta.deadline)
       };
-      let output = tpl;
-      Object.entries(replacements).forEach(([key, val]) => {
-        output = output.replaceAll(key, val);
+      const customFields = safeMeta.custom_fields || {};
+      Object.entries(customFields).forEach(([key, val]) => {
+        base[key] = toHtml(val);
       });
-      return output;
+      Object.entries(safeMeta).forEach(([key, val]) => {
+        if (['pemohon', 'tujuan', 'tanggal', 'custom_fields'].includes(key)) return;
+        if (base[key] === undefined) {
+          base[key] = toHtml(val);
+        }
+      });
+      return base;
     };
 
+    const renderTemplate = (tpl, target, isBody = false) => {
+      if (!tpl) return '';
+      const replacements = buildReplacements(target);
+      let output = tpl.replace(/{{\s*([\w.]+)\s*}}/g, (_, key) =>
+        replacements[key] != null ? replacements[key] : ''
+      );
+      return isBody ? output.replace(/\n/g, '<br/>') : output;
+    };
+
+    let allowedIds = null;
+    if (req.user.role !== 'admin') {
+      const assignments = await Assignment.findAll({
+        where: { user_id: userId },
+        attributes: ['badan_publik_id']
+      });
+      allowedIds = new Set(assignments.map((a) => a.badan_publik_id));
+    }
+
     for (const targetId of badan_publik_ids) {
+      if (allowedIds && !allowedIds.has(targetId)) {
+        results.push({ id: targetId, status: 'failed', reason: 'Tidak punya akses ke badan publik ini' });
+        continue;
+      }
+
       const target = await BadanPublik.findByPk(targetId);
 
       if (!target) {
@@ -136,8 +199,26 @@ const sendBulkEmail = async (req, res) => {
         continue;
       }
 
+      if (!isValidEmail(target.email)) {
+        const failedLog = await EmailLog.create({
+          user_id: userId,
+          badan_publik_id: target.id,
+          subject: subject || subject_template || '(tidak ada subjek)',
+          body: body || body_template || '',
+          status: 'failed',
+          message_id: null,
+          attachments_meta: attachmentsMeta,
+          attachments_data: safeAttachments,
+          error_message: 'Email tujuan kosong/invalid',
+          sent_at: new Date()
+        });
+        emitLog(failedLog.id);
+        results.push({ id: target.id, status: 'failed', reason: 'Email tujuan kosong/invalid' });
+        continue;
+      }
+
       const finalSubject = renderTemplate(subject_template || subject, target);
-      const finalBody = renderTemplate(body_template || body, target);
+      const finalBody = renderTemplate(body_template || body, target, true);
 
       try {
         const info = await transporter.sendMail({
@@ -168,8 +249,17 @@ const sendBulkEmail = async (req, res) => {
 
         emitLog(newLog.id);
         results.push({ id: target.id, status: 'success' });
+        user.used_today += 1;
       } catch (err) {
         console.error(err);
+        if (err?.code === 'EAUTH' || err?.responseCode === 535) {
+          return res.status(400).json({
+            message:
+              'Login SMTP gagal. Periksa email + App Password Gmail, pastikan 2FA aktif dan IMAP diaktifkan.',
+            detail: err.message,
+            results
+          });
+        }
         const failedLog = await EmailLog.create({
           user_id: userId,
           badan_publik_id: target.id,
@@ -183,9 +273,16 @@ const sendBulkEmail = async (req, res) => {
           sent_at: new Date()
         });
         emitLog(failedLog.id);
-        results.push({ id: target.id, status: 'failed', reason: 'Gagal mengirim email' });
+        results.push({
+          id: target.id,
+          status: 'failed',
+          reason: `Gagal mengirim email: ${err.message || 'unknown'}`
+        });
       }
     }
+
+    // simpan pemakaian kuota jika ada sukses
+    await user.save();
 
     return res.json({ message: 'Proses pengiriman selesai', results });
   } catch (err) {
@@ -248,28 +345,13 @@ const streamEmailLogs = async (req, res) => {
 const retryEmail = async (req, res) => {
   try {
     const { id } = req.params;
-    const requesterId = req.user.id;
-
     const log = await EmailLog.findByPk(id);
-
-    if (!log) {
-      return res.status(404).json({ message: 'Log tidak ditemukan' });
+    if (!log) return res.status(404).json({ message: 'Log tidak ditemukan' });
+    if (req.user.role !== 'admin' && log.user_id !== req.user.id) {
+      return res.status(403).json({ message: 'Tidak boleh retry log user lain' });
     }
-
-    if (req.user.role !== 'admin' && log.user_id !== requesterId) {
-      return res.status(403).json({ message: 'Akses ditolak untuk log ini' });
-    }
-
-    const target = await BadanPublik.findByPk(log.badan_publik_id);
-    if (!target) {
-      return res.status(404).json({ message: 'Data badan publik tidak ditemukan' });
-    }
-
-    const smtpConfig = await SmtpConfig.findOne({ where: { user_id: requesterId } });
-
-    if (!smtpConfig) {
-      return res.status(400).json({ message: 'Konfigurasi SMTP belum tersedia' });
-    }
+    const smtpConfig = await SmtpConfig.findOne({ where: { user_id: log.user_id } });
+    if (!smtpConfig) return res.status(400).json({ message: 'User belum memiliki SMTP' });
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -279,60 +361,54 @@ const retryEmail = async (req, res) => {
       }
     });
 
-    const attachmentsData = Array.isArray(log.attachments_data) ? log.attachments_data : [];
-    const attachmentsMeta = Array.isArray(log.attachments_meta) ? log.attachments_meta : [];
-
     try {
-      const info = await transporter.sendMail({
-        from: smtpConfig.email_address,
-        to: target.email,
-        subject: log.subject,
-        html: log.body,
-        text: log.body,
-        attachments: attachmentsData
-      });
-
-      await target.update({
-        sent_count: target.sent_count + 1,
-        status: 'sent'
-      });
-
-      const newLog = await EmailLog.create({
-        user_id: requesterId,
-        badan_publik_id: target.id,
-        subject: log.subject,
-        body: log.body,
-        status: 'success',
-        message_id: info?.messageId || null,
-        attachments_meta: attachmentsMeta,
-        attachments_data: attachmentsData,
-        retry_of_id: log.id,
-        sent_at: new Date()
-      });
-      emitLog(newLog.id);
-
-      return res.json({ message: 'Email berhasil dikirim ulang', log_id: newLog.id });
+      await transporter.verify();
     } catch (err) {
-      console.error(err);
-      const failedLog = await EmailLog.create({
-        user_id: requesterId,
-        badan_publik_id: target.id,
-        subject: log.subject,
-        body: log.body,
-        status: 'failed',
-        message_id: null,
-        attachments_meta: attachmentsMeta,
-        attachments_data: attachmentsData,
-        retry_of_id: log.id,
-        error_message: err.message,
-        sent_at: new Date()
-      });
-      emitLog(failedLog.id);
-      return res.status(500).json({ message: 'Gagal mengirim ulang email', detail: err.message });
+      return res.status(400).json({ message: 'SMTP tidak valid saat retry', detail: err.message });
     }
+
+    const badan = await BadanPublik.findByPk(log.badan_publik_id);
+    if (!badan || !isValidEmail(badan.email)) {
+      return res.status(400).json({ message: 'Email tujuan tidak valid untuk retry' });
+    }
+
+    const safeAttachments = Array.isArray(log.attachments_data) ? log.attachments_data : [];
+    const attachmentsMeta = safeAttachments.map((att) => {
+      const size = getAttachmentSize(att);
+      return {
+        filename: att.filename,
+        contentType: att.contentType,
+        size,
+        readableSize: formatBytes(size)
+      };
+    });
+
+    const info = await transporter.sendMail({
+      from: smtpConfig.email_address,
+      to: badan.email,
+      subject: log.subject,
+      html: log.body,
+      text: log.body,
+      attachments: safeAttachments
+    });
+
+    const newLog = await EmailLog.create({
+      user_id: log.user_id,
+      badan_publik_id: log.badan_publik_id,
+      subject: log.subject,
+      body: log.body,
+      status: 'success',
+      message_id: info?.messageId || null,
+      attachments_meta: attachmentsMeta,
+      attachments_data: safeAttachments,
+      retry_of_id: log.id,
+      sent_at: new Date()
+    });
+    emitLog(newLog.id);
+    return res.json({ message: 'Retry berhasil dikirim', log: newLog });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Gagal mengirim ulang email' });
+    return res.status(500).json({ message: 'Gagal retry email' });
   }
 };
 

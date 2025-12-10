@@ -37,6 +37,10 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: 'pending'
       },
+      thread_id: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
       sent_count: {
         type: DataTypes.INTEGER,
         allowNull: false,

@@ -2,6 +2,14 @@ import { useState } from 'react';
 import { useSmtp } from '../context/SmtpContext';
 import SmtpModal from '../components/SmtpModal';
 
+const steps = [
+  'Aktifkan 2-Step Verification di Google Account.',
+  'Buat App Password: Security > App Passwords > pilih “Mail” dan device “Other”, simpan 16 digit.',
+  'Aktifkan IMAP (Settings Gmail > See all settings > Forwarding and POP/IMAP > Enable IMAP). POP3 opsional.',
+  'Masukkan Email + App Password ke form SMTP di sini.',
+  'Simpan. Indikator di navbar berubah hijau jika berhasil.'
+];
+
 const Settings = () => {
   const { hasConfig } = useSmtp();
   const [open, setOpen] = useState(false);
@@ -27,7 +35,8 @@ const Settings = () => {
           <div>
             <h2 className="text-lg font-semibold text-slate-900">SMTP Gmail</h2>
             <p className="text-sm text-slate-500">
-              Simpan email dan app password pribadi untuk mengirim kampanye.
+              SMTP (Simple Mail Transfer Protocol) adalah jalur pengiriman email. Kita perlu App Password karena
+              Gmail melarang password biasa untuk aplikasi pihak ketiga.
             </p>
           </div>
           <button
@@ -37,9 +46,20 @@ const Settings = () => {
             {hasConfig ? 'Perbarui SMTP' : 'Tambah SMTP'}
           </button>
         </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+          <div className="text-sm font-semibold text-slate-800 mb-2">Langkah singkat</div>
+          <ol className="list-decimal pl-5 text-sm text-slate-700 space-y-1">
+            {steps.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ol>
+          <p className="text-xs text-slate-500 mt-2">
+            Catatan: POP/IMAP hanya untuk menerima email; kita butuh IMAP aktif agar koneksi SMTP Gmail diizinkan.
+          </p>
+        </div>
         <ul className="list-disc pl-5 text-sm text-slate-600 space-y-2">
-          <li>Pastikan 2FA aktif lalu buat App Password di Google Account.</li>
-          <li>Setiap user memiliki SMTP masing-masing, tidak dibagikan.</li>
+          <li>Setiap user punya SMTP sendiri; admin tidak berbagi kredensial.</li>
+          <li>Jika gagal, cek 16 digit App Password dan pastikan IMAP aktif.</li>
           <li>Indikator di navbar akan hijau jika SMTP tersimpan.</li>
         </ul>
       </div>

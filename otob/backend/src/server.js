@@ -6,6 +6,9 @@ const authRoutes = require('./routes/authRoutes');
 const configRoutes = require('./routes/configRoutes');
 const badanPublikRoutes = require('./routes/badanPublikRoutes');
 const emailRoutes = require('./routes/emailRoutes');
+const userRoutes = require('./routes/userRoutes');
+const assignmentRoutes = require('./routes/assignmentRoutes');
+const quotaRoutes = require('./routes/quotaRoutes');
 
 dotenv.config();
 
@@ -25,6 +28,9 @@ app.use('/auth', authRoutes);
 app.use('/config', configRoutes);
 app.use('/badan-publik', badanPublikRoutes);
 app.use('/email', emailRoutes);
+app.use('/users', userRoutes);
+app.use('/assignments', assignmentRoutes);
+app.use('/quota', quotaRoutes);
 
 // Bootstrapping server + koneksi database
 const startServer = async () => {

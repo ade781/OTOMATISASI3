@@ -9,9 +9,10 @@ const HistoryLog = () => {
   const [selectedLog, setSelectedLog] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [ownerFilter, setOwnerFilter] = useState(user?.role === 'admin' ? 'all' : 'mine');
-  const [retryingId, setRetryingId] = useState(null);
   const [infoMessage, setInfoMessage] = useState('');
   const [streamStatus, setStreamStatus] = useState('idle');
+  const [search, setSearch] = useState('');
+  const [retryingId, setRetryingId] = useState(null);
 
   const baseUrl = useMemo(() => {
     const url = api.defaults?.baseURL || import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -92,28 +93,22 @@ const HistoryLog = () => {
     const byStatus = statusFilter === 'all' ? logs : logs.filter((l) => l.status === statusFilter);
     const byOwner =
       ownerFilter === 'all' ? byStatus : byStatus.filter((l) => l.user_id === user?.id);
-    return byOwner;
-  }, [logs, ownerFilter, statusFilter, user?.id]);
+    const q = search.toLowerCase();
+    if (!q) return byOwner;
+    return byOwner.filter(
+      (l) =>
+        l.subject?.toLowerCase().includes(q) ||
+        l.badanPublik?.nama_badan_publik?.toLowerCase().includes(q) ||
+        l.user?.username?.toLowerCase().includes(q) ||
+        l.message_id?.toLowerCase().includes(q)
+    );
+  }, [logs, ownerFilter, statusFilter, user?.id, search]);
 
   const openGmail = (messageId) => {
     const url = messageId
       ? `https://mail.google.com/mail/u/0/#search/rfc822msgid:${encodeURIComponent(messageId)}`
       : 'https://mail.google.com/mail/u/0/#sent';
     window.open(url, '_blank');
-  };
-
-  const handleRetry = async (log) => {
-    if (!log?.id) return;
-    setRetryingId(log.id);
-    setInfoMessage('');
-    try {
-      const res = await api.post(`/email/retry/${log.id}`);
-      setInfoMessage(res.data?.message || 'Retry diproses');
-    } catch (err) {
-      setInfoMessage(err.response?.data?.message || 'Gagal mengirim ulang email');
-    } finally {
-      setRetryingId(null);
-    }
   };
 
   const exportCsv = () => {
@@ -195,6 +190,20 @@ const HistoryLog = () => {
       ? 'bg-emerald-100 text-emerald-700'
       : 'bg-rose-100 text-rose-700';
 
+  const handleRetry = async (log) => {
+    setRetryingId(log.id);
+    setInfoMessage('');
+    try {
+      await api.post(`/email/retry/${log.id}`);
+      setInfoMessage('Retry dikirim');
+      fetchLogs();
+    } catch (err) {
+      setInfoMessage(err.response?.data?.message || 'Gagal retry');
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -251,6 +260,12 @@ const HistoryLog = () => {
           >
             Export PDF
           </button>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari subject/target/message id"
+            className="px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
         </div>
       </div>
 
@@ -350,15 +365,12 @@ const HistoryLog = () => {
                           <button
                             onClick={() => handleRetry(item)}
                             disabled={retryingId === item.id}
-                            className="text-sm font-semibold text-rose-500 hover:underline disabled:opacity-50"
+                            className="text-sm font-semibold text-rose-600 hover:underline disabled:opacity-50"
                           >
                             {retryingId === item.id ? 'Retrying...' : 'Retry'}
                           </button>
                         )}
-                        <button
-                          onClick={() => setSelectedLog(item)}
-                          className="text-sm font-semibold text-primary hover:underline"
-                        >
+                        <button onClick={() => setSelectedLog(item)} className="text-sm font-semibold text-primary hover:underline">
                           Detail
                         </button>
                       </div>
@@ -452,7 +464,7 @@ const HistoryLog = () => {
                 )}
               </div>
             </div>
-            <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2">
               {selectedLog.status === 'failed' && (
                 <button
                   onClick={() => handleRetry(selectedLog)}
