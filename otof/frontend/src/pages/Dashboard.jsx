@@ -11,6 +11,7 @@ import ConfirmModal from '../components/dashboard/ConfirmModal';
 import SuccessModal from '../components/dashboard/SuccessModal';
 import Toast from '../components/Toast';
 import DEFAULT_TEMPLATES from '../constants/templates';
+import QUOTES from '../constants/quotes';
 
 const extractPlaceholders = (subject, body) => {
   const set = new Set();
@@ -40,6 +41,8 @@ const formatBytes = (bytes) => {
   const value = bytes / 1024 ** i;
   return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${sizes[i]}`;
 };
+
+const pickRandom = (arr) => (arr && arr.length ? arr[Math.floor(Math.random() * arr.length)] : null);
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -101,8 +104,10 @@ const Dashboard = () => {
   const [assignmentSearch, setAssignmentSearch] = useState('');
   const [customTemplates, setCustomTemplates] = useState(() => loadTemplates(user?.role));
   const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_TEMPLATES[0].id);
+  const [lastSync, setLastSync] = useState(null);
   const [bodyTemplate, setBodyTemplate] = useState(DEFAULT_TEMPLATES[0].body);
   const [customValues, setCustomValues] = useState({});
+  const [currentQuote, setCurrentQuote] = useState(() => pickRandom(QUOTES));
   const templates = useMemo(() => {
     const overrideMap = new Map(customTemplates.map((t) => [t.id, t]));
     const defaultIds = new Set(DEFAULT_TEMPLATES.map((t) => t.id));
@@ -220,6 +225,18 @@ const Dashboard = () => {
   const handleCustomValueChange = (field, value) => {
     setCustomValues((prev) => ({ ...prev, [field]: value }));
   };
+
+  const shuffleQuote = useCallback(() => {
+    if (!QUOTES.length) return;
+    setCurrentQuote((prev) => {
+      if (QUOTES.length === 1) return QUOTES[0];
+      let next = prev;
+      while (next === prev) {
+        next = pickRandom(QUOTES);
+      }
+      return next;
+    });
+  }, []);
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -464,98 +481,66 @@ const Dashboard = () => {
     { title: 'Log Tercatat', value: stats.logCount, accent: 'slate', hint: 'Riwayat di History', source: 'Log', updatedAt: 'real-time' }
   ];
 
+  const formatSync = (date) =>
+    date
+      ? `${date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })} ${date.toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit'
+        })}`
+      : '—';
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-5 col-span-1 lg:col-span-2">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <p className="text-xs font-semibold text-primary uppercase tracking-[0.08em]">Halo, {user?.username}</p>
-              <h1 className="text-3xl font-bold text-slate-900" style={{ fontFamily: '"Newsreader", serif' }}>
-                Jalur cepat keterbukaan informasi
-              </h1>
-              <p className="text-sm text-slate-600 mt-1">
-                Ikuti tiga langkah: setel SMTP, siapkan data, kirim permohonan massal dengan lampiran KTP.
-              </p>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <span className="px-3 py-2 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-600">
-                Peran: {user?.role}
-              </span>
-              <div className="flex items-center gap-2">
-                <span
-                  title={hasConfig ? 'SMTP tersimpan' : 'Belum ada SMTP, buka Settings'}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
-                    hasConfig ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
-                  }`}
-                >
-                  {hasConfig ? 'SMTP siap' : 'SMTP belum siap'}
-                </span>
-                <button
-                  onClick={verifySmtpQuick}
-                  disabled={smtpTesting}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold disabled:opacity-60"
-                >
-                  {smtpTesting ? 'Menguji...' : 'Cek SMTP'}
-                </button>
-                <Link
-                  to="/settings"
-                  className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold shadow-soft hover:bg-slate-800"
-                >
-                  Settings
-                </Link>
+        <div className="relative overflow-hidden bg-gradient-to-r from-slate-50 via-indigo-50 to-sky-50 border border-slate-200 rounded-2xl shadow-soft p-5 lg:col-span-2">
+          <div className="absolute inset-x-6 top-0 h-[3px] rounded-b-full bg-primary/70" aria-hidden="true" />
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-11 w-11 rounded-full bg-white/80 text-primary flex items-center justify-center shadow-soft border border-white/60">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M10 7.5a4.5 4.5 0 1 0-4 7m4-7H7m7 0a4.5 4.5 0 1 0 4 7m-4-7h3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div>
+                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Transparansi</span>
+                <div className="text-sm font-semibold text-slate-900">Kutipan keterbukaan</div>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={shuffleQuote}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-white/70 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M4 4h5l-1.5 1.5M20 20h-5l1.5-1.5M20 4l-4 4M4 20l4-4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M4 4v6.5A3.5 3.5 0 0 0 7.5 14H20M20 20v-6.5A3.5 3.5 0 0 0 16.5 10H4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Acak</span>
+            </button>
           </div>
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {[
-              { title: 'Setel SMTP', done: hasConfig, desc: 'App password & IMAP aktif', action: () => setShowGuide(false) },
-              { title: 'Siapkan data', done: badan.length > 0, desc: 'Import / tambah badan publik', action: null },
-              { title: 'Kirim', done: sendSummary.success > 0, desc: 'Pilih penerima, lampirkan KTP', action: null }
-            ].map((step, idx) => (
-              <div
-                key={step.title}
-                className={`rounded-xl border px-3 py-3 flex items-start gap-3 ${
-                  step.done ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'
-                }`}
-              >
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                    step.done ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700 border border-slate-200'
-                  }`}
-                >
-                  {idx + 1}
-                </div>
-                <div className="text-sm">
-                  <div className="font-semibold text-slate-900">{step.title}</div>
-                  <div className="text-xs text-slate-600">{step.desc}</div>
-                </div>
-              </div>
-            ))}
+          <div className="mt-4 rounded-xl bg-white/80 border border-white/60 shadow-inner px-4 py-3">
+            <p className="text-base font-semibold text-slate-900 leading-relaxed">
+              {currentQuote?.text || 'Transparansi memperkuat akuntabilitas.'}
+            </p>
+            <div className="mt-3 pt-2 border-t border-slate-200/70 text-xs font-medium text-slate-600 text-right">
+              {currentQuote?.source || 'UU KIP'}
+            </div>
           </div>
         </div>
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold text-slate-900">Ringkasan kirim</div>
-              <p className="text-xs text-slate-500">Status log terakhir</p>
-            </div>
-            <Link to="/history" className="text-xs font-semibold text-primary hover:underline">
-              Lihat log
-            </Link>
-          </div>
-          <div className="flex items-center gap-3 text-sm">
-            <span className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
-              Berhasil: {sendSummary.success}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-5 col-span-1 lg:col-span-1">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
+            <span className="badge-info">Peran: {user?.role}</span>
+            <span className={hasConfig ? 'badge-success' : 'badge-error'}>
+              {hasConfig ? 'SMTP siap' : 'SMTP belum siap'}
             </span>
-            <span className="px-3 py-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-200">
-              Gagal: {sendSummary.failed}
+            <span className="badge-info">Sinkron: {formatSync(lastSync)}</span>
+            <span className="badge-info">
+              Template: {templates.find((t) => t.id === selectedTemplateId)?.name}
             </span>
           </div>
         </div>
       </div>
-
-      {!isAdmin && (
+     {!isAdmin && (
         <div className="grid grid-cols-1 gap-3">
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-soft">
             <div className="flex items-center justify-between gap-3">
@@ -814,3 +799,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+/*  */
