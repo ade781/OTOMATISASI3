@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSmtp } from '../context/SmtpContext';
@@ -10,6 +9,10 @@ import RecipientTable from '../components/dashboard/RecipientTable';
 import ConfirmModal from '../components/dashboard/ConfirmModal';
 import SuccessModal from '../components/dashboard/SuccessModal';
 import Toast from '../components/Toast';
+import QuoteCard from '../components/dashboard/QuoteCard';
+import StatusCard from '../components/dashboard/StatusCard';
+import QuotaCard from '../components/dashboard/QuotaCard';
+import AssignmentsCard from '../components/dashboard/AssignmentsCard';
 import DEFAULT_TEMPLATES from '../constants/templates';
 import QUOTES from '../constants/quotes';
 
@@ -41,8 +44,6 @@ const formatBytes = (bytes) => {
   const value = bytes / 1024 ** i;
   return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${sizes[i]}`;
 };
-
-const pickRandom = (arr) => (arr && arr.length ? arr[Math.floor(Math.random() * arr.length)] : null);
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -104,10 +105,8 @@ const Dashboard = () => {
   const [assignmentSearch, setAssignmentSearch] = useState('');
   const [customTemplates, setCustomTemplates] = useState(() => loadTemplates(user?.role));
   const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_TEMPLATES[0].id);
-  const [lastSync, setLastSync] = useState(null);
   const [bodyTemplate, setBodyTemplate] = useState(DEFAULT_TEMPLATES[0].body);
   const [customValues, setCustomValues] = useState({});
-  const [currentQuote, setCurrentQuote] = useState(() => pickRandom(QUOTES));
   const templates = useMemo(() => {
     const overrideMap = new Map(customTemplates.map((t) => [t.id, t]));
     const defaultIds = new Set(DEFAULT_TEMPLATES.map((t) => t.id));
@@ -226,18 +225,6 @@ const Dashboard = () => {
     setCustomValues((prev) => ({ ...prev, [field]: value }));
   };
 
-  const shuffleQuote = useCallback(() => {
-    if (!QUOTES.length) return;
-    setCurrentQuote((prev) => {
-      if (QUOTES.length === 1) return QUOTES[0];
-      let next = prev;
-      while (next === prev) {
-        next = pickRandom(QUOTES);
-      }
-      return next;
-    });
-  }, []);
-
   const toggleSelect = (id) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
@@ -347,9 +334,8 @@ const Dashboard = () => {
 
   const attachmentInfo = useMemo(() => {
     if (!attachment) return null;
-    return `${attachment.filename || 'Lampiran'}${attachment.size ? ` (${formatBytes(attachment.size)})` : ''}${
-      attachment.contentType ? ` • ${attachment.contentType}` : ''
-    }`;
+    return `${attachment.filename || 'Lampiran'}${attachment.size ? ` (${formatBytes(attachment.size)})` : ''}${attachment.contentType ? ` • ${attachment.contentType}` : ''
+      }`;
   }, [attachment]);
 
   const filteredAssignments = useMemo(() => {
@@ -481,114 +467,14 @@ const Dashboard = () => {
     { title: 'Log Tercatat', value: stats.logCount, accent: 'slate', hint: 'Riwayat di History', source: 'Log', updatedAt: 'real-time' }
   ];
 
-  const formatSync = (date) =>
-    date
-      ? `${date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })} ${date.toLocaleTimeString('id-ID', {
-          hour: '2-digit',
-          minute: '2-digit'
-        })}`
-      : '—';
-
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="relative overflow-hidden bg-gradient-to-r from-slate-50 via-indigo-50 to-sky-50 border border-slate-200 rounded-2xl shadow-soft p-5 lg:col-span-2">
-          <div className="absolute inset-x-6 top-0 h-[3px] rounded-b-full bg-primary/70" aria-hidden="true" />
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="h-11 w-11 rounded-full bg-white/80 text-primary flex items-center justify-center shadow-soft border border-white/60">
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M10 7.5a4.5 4.5 0 1 0-4 7m4-7H7m7 0a4.5 4.5 0 1 0 4 7m-4-7h3" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <div>
-                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Transparansi</span>
-                <div className="text-sm font-semibold text-slate-900">Kutipan keterbukaan</div>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={shuffleQuote}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-white/70 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-primary/30"
-            >
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M4 4h5l-1.5 1.5M20 20h-5l1.5-1.5M20 4l-4 4M4 20l4-4" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M4 4v6.5A3.5 3.5 0 0 0 7.5 14H20M20 20v-6.5A3.5 3.5 0 0 0 16.5 10H4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Acak</span>
-            </button>
-          </div>
-          <div className="mt-4 rounded-xl bg-white/80 border border-white/60 shadow-inner px-4 py-3">
-            <p className="text-base font-semibold text-slate-900 leading-relaxed">
-              {currentQuote?.text || 'Transparansi memperkuat akuntabilitas.'}
-            </p>
-            <div className="mt-3 pt-2 border-t border-slate-200/70 text-xs font-medium text-slate-600 text-right">
-              {currentQuote?.source || 'UU KIP'}
-            </div>
-          </div>
-        </div>
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-5 col-span-1 lg:col-span-1">
-          <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
-            <span className="badge-info">Peran: {user?.role}</span>
-            <span className={hasConfig ? 'badge-success' : 'badge-error'}>
-              {hasConfig ? 'SMTP siap' : 'SMTP belum siap'}
-            </span>
-            <span className="badge-info">Sinkron: {formatSync(lastSync)}</span>
-            <span className="badge-info">
-              Template: {templates.find((t) => t.id === selectedTemplateId)?.name}
-            </span>
-          </div>
-        </div>
+        <QuoteCard quotes={QUOTES} />
+        <StatusCard label="Coming Soon" />
       </div>
-     {!isAdmin && (
-        <div className="grid grid-cols-1 gap-3">
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-soft">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-slate-900">Kuota harian</div>
-                <div className="text-xs text-slate-600">
-                  {quota
-                    ? `${quota.used_today}/${quota.daily_quota} terpakai (sisa ${
-                        quota.remaining ?? quota.daily_quota - quota.used_today
-                      })`
-                    : 'Memuat...'}
-                </div>
-              </div>
-              <button
-                onClick={() => setQuotaModal(true)}
-                className="text-xs px-3 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
-              >
-                Ajukan kuota
-              </button>
-            </div>
-            <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all"
-                style={{
-                  width: `${Math.min(
-                    100,
-                    quota && quota.daily_quota ? Math.round((quota.used_today / quota.daily_quota) * 100) : 0
-                  )}%`
-                }}
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-2 text-xs text-slate-600">
-              {quotaRequests[0] && (
-                <span
-                  className={`text-[11px] px-2 py-1 rounded-full ${
-                    quotaRequests[0].status === 'approved'
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : quotaRequests[0].status === 'rejected'
-                      ? 'bg-rose-100 text-rose-700'
-                      : 'bg-amber-100 text-amber-700'
-                  }`}
-                >
-                  Permintaan terakhir: {quotaRequests[0].status}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
+      {!isAdmin && (
+        <QuotaCard quota={quota} quotaRequests={quotaRequests} onRequest={() => setQuotaModal(true)} />
       )}
 
       <GuideCard visible={showGuide} onClose={() => setShowGuide(false)} />
@@ -596,52 +482,15 @@ const Dashboard = () => {
       <StatsGrid cards={cards} loading={loading} />
 
       {user?.role !== 'admin' && (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-5 space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm text-slate-500">Akses penugasan</p>
-              <h2 className="text-lg font-bold text-slate-900">
-                Anda ditugaskan ke {assignments.length} badan publik
-              </h2>
-            </div>
-            {assignments.length > 0 && (
-              <button
-                onClick={() => setAssignmentsModal(true)}
-                className="text-xs px-3 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
-              >
-                Lihat semua
-              </button>
-            )}
-          </div>
-          {assignments.length === 0 ? (
-            <div className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-              Belum ada penugasan. Hubungi admin agar Anda mendapat akses badan publik.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              {assignments.slice(0, 6).map((a) => (
-                <div
-                  key={a.badan_publik_id}
-                  className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700"
-                >
-                  <div className="font-semibold text-slate-900">{a.badanPublik?.nama_badan_publik}</div>
-                  <div className="text-xs text-slate-500">{a.badanPublik?.kategori}</div>
-                </div>
-              ))}
-              {assignments.length > 6 && (
-                <div className="px-3 py-2 text-sm text-slate-500">+{assignments.length - 6} lainnya</div>
-              )}
-            </div>
-          )}
-        </div>
+        <AssignmentsCard assignments={assignments} onOpenModal={() => setAssignmentsModal(true)} />
       )}
 
       <ComposerSection
         form={form}
         setForm={setForm}
-      attachment={attachment}
-      attachmentPreview={attachmentPreview}
-      attachmentInfo={attachmentInfo}
+        attachment={attachment}
+        attachmentPreview={attachmentPreview}
+        attachmentInfo={attachmentInfo}
         handleFile={handleFile}
         previewBody={previewBody}
         selectedCount={selectedIds.length}
@@ -799,4 +648,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-/*  */
