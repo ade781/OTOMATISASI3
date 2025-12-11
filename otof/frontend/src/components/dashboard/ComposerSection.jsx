@@ -2,6 +2,7 @@ const ComposerSection = ({
   form,
   setForm,
   attachment,
+  attachmentInfo,
   attachmentPreview,
   handleFile,
   previewBody,
@@ -147,9 +148,14 @@ const ComposerSection = ({
                 <input type="file" accept="image/*,.pdf" className="hidden" onChange={handleFile} />
                 <span className="px-3 py-2 rounded-lg bg-primary text-white text-xs font-semibold">Pilih File</span>
                 <span className="text-sm text-slate-700">
-                  {attachment?.filename || 'Unggah KTP (jpg/png/pdf, maks 5MB)'}
+                  {attachment?.filename || 'Unggah KTP (jpg/png/pdf, maks 7MB)'}
                 </span>
               </label>
+              {attachmentInfo && (
+                <span className="text-xs px-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-700">
+                  {attachmentInfo}
+                </span>
+              )}
               {attachmentPreview && attachmentPreview.type?.startsWith('image/') && (
                 <div className="w-32 h-32 rounded-xl overflow-hidden border border-slate-200 shadow-soft">
                   <img src={attachmentPreview.url} alt="Preview KTP" className="w-full h-full object-cover" />

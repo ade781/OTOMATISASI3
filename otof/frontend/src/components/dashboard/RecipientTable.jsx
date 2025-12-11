@@ -1,17 +1,81 @@
-const RecipientTable = ({ badan, selectedIds, loading, toggleAll, toggleSelect }) => {
+const RecipientTable = ({
+  badan,
+  selectedIds,
+  loading,
+  toggleAll,
+  toggleSelect,
+  filterText,
+  setFilterText,
+  filterKategori,
+  setFilterKategori,
+  filterStatus,
+  setFilterStatus,
+  categories = [],
+  statuses = [],
+  selectFiltered,
+  clearSelection
+}) => {
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-soft p-5 space-y-3">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900">Data Badan Publik</h2>
-          <p className="text-sm text-slate-500">Pilih penerima untuk dikirimi permohonan.</p>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Data Badan Publik</h2>
+            <p className="text-sm text-slate-500">Pilih penerima untuk dikirimi permohonan.</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={selectFiltered}
+              className="px-3 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
+            >
+              Pilih sesuai filter
+            </button>
+            <button
+              onClick={clearSelection}
+              className="px-3 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
+            >
+              Hapus pilihan
+            </button>
+            <button
+              onClick={toggleAll}
+              className="px-3 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
+            >
+              {selectedIds.length === badan.length && badan.length > 0 ? 'Batal pilih semua' : 'Pilih semua'}
+            </button>
+          </div>
         </div>
-        <button
-          onClick={toggleAll}
-          className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
-        >
-          {selectedIds.length === badan.length && badan.length > 0 ? 'Batal pilih semua' : 'Pilih semua'}
-        </button>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            placeholder="Cari nama/kategori/email/pertanyaan"
+            className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+          />
+          <select
+            value={filterKategori}
+            onChange={(e) => setFilterKategori(e.target.value)}
+            className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+          >
+            <option value="">Semua kategori</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+          >
+            <option value="">Semua status</option>
+            {statuses.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">

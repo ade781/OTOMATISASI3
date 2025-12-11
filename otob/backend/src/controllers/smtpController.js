@@ -40,16 +40,25 @@ const checkSmtpConfig = async (req, res) => {
 // Verifikasi kredensial SMTP (tanpa menyimpan) untuk memastikan bisa login ke Gmail SMTP
 const verifySmtpConfig = async (req, res) => {
   try {
-    const { email_address, app_password } = req.body;
-    if (!email_address || !app_password) {
-      return res.status(400).json({ message: 'Email dan App Password wajib diisi' });
+    const { email_address, app_password } = req.body || {};
+    let userEmail = email_address;
+    let userPass = app_password;
+
+    // Jika body kosong, gunakan kredensial tersimpan milik user
+    if (!userEmail || !userPass) {
+      const stored = await SmtpConfig.findOne({ where: { user_id: req.user.id } });
+      if (!stored) {
+        return res.status(400).json({ message: 'SMTP belum disetel. Isi email + App Password dulu.' });
+      }
+      userEmail = stored.email_address;
+      userPass = stored.app_password;
     }
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: email_address,
-        pass: app_password
+        user: userEmail,
+        pass: userPass
       }
     });
 

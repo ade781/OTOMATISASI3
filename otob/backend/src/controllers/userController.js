@@ -37,9 +37,16 @@ const listUsers = async (_req, res) => {
   try {
     const users = await User.findAll({
       attributes: ['id', 'username', 'role'],
+      include: [{ model: SmtpConfig, as: 'smtpConfig', attributes: ['id'] }],
       order: [['id', 'ASC']]
     });
-    return res.json(users);
+    const mapped = users.map((u) => ({
+      id: u.id,
+      username: u.username,
+      role: u.role,
+      hasSmtp: Boolean(u.smtpConfig)
+    }));
+    return res.json(mapped);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Gagal mengambil user' });
@@ -101,6 +108,25 @@ module.exports = {
     } catch (err) {
       console.error(err);
       return res.status(500).json({ message: 'Gagal menghapus user' });
+    }
+  },
+  resetPassword: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { password } = req.body;
+      if (!password || password.length < 4) {
+        return res.status(400).json({ message: 'Password baru wajib diisi' });
+      }
+      const user = await User.findByPk(id);
+      if (!user) {
+        return res.status(404).json({ message: 'User tidak ditemukan' });
+      }
+      const hashed = await bcrypt.hash(password, 10);
+      await user.update({ password: hashed });
+      return res.json({ message: 'Password berhasil direset' });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: 'Gagal reset password' });
     }
   }
 };

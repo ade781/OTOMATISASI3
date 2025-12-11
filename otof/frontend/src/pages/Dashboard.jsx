@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSmtp } from '../context/SmtpContext';
@@ -32,9 +33,17 @@ const formatLabel = (key) =>
     .map((part) => (part ? part[0].toUpperCase() + part.slice(1) : ''))
     .join(' ');
 
+const formatBytes = (bytes) => {
+  if (!bytes || Number.isNaN(bytes)) return '0 B';
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), sizes.length - 1);
+  const value = bytes / 1024 ** i;
+  return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${sizes[i]}`;
+};
+
 const Dashboard = () => {
   const { user } = useAuth();
-  const { hasConfig } = useSmtp();
+  const { hasConfig, checkConfig } = useSmtp();
   const isAdmin = user?.role === 'admin';
   const loadTemplates = (role) => {
     const roleKey = role ? `customTemplates:${role}` : 'customTemplates';
@@ -69,6 +78,9 @@ const Dashboard = () => {
   });
   const [badan, setBadan] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [filterText, setFilterText] = useState('');
+  const [filterKategori, setFilterKategori] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [successInfo, setSuccessInfo] = useState(null);
@@ -83,6 +95,10 @@ const Dashboard = () => {
   const [quotaModal, setQuotaModal] = useState(false);
   const [quotaRequest, setQuotaRequest] = useState({ requested_quota: 50, reason: '' });
   const [quotaRequests, setQuotaRequests] = useState([]);
+  const [smtpTesting, setSmtpTesting] = useState(false);
+  const [sendSummary, setSendSummary] = useState({ success: 0, failed: 0 });
+  const [assignmentsModal, setAssignmentsModal] = useState(false);
+  const [assignmentSearch, setAssignmentSearch] = useState('');
   const [customTemplates, setCustomTemplates] = useState(() => loadTemplates(user?.role));
   const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_TEMPLATES[0].id);
   const [bodyTemplate, setBodyTemplate] = useState(DEFAULT_TEMPLATES[0].body);
@@ -98,6 +114,11 @@ const Dashboard = () => {
     () => templates.find((t) => t.id === selectedTemplateId) || templates[0],
     [templates, selectedTemplateId]
   );
+  const categories = useMemo(
+    () => Array.from(new Set(badan.map((b) => b.kategori).filter(Boolean))).sort(),
+    [badan]
+  );
+  const statuses = useMemo(() => Array.from(new Set(badan.map((b) => b.status).filter(Boolean))), [badan]);
 
   const [form, setForm] = useState({
     pemohon: '',
@@ -116,12 +137,16 @@ const Dashboard = () => {
         const sentCount = badanData.reduce((acc, item) => acc + (item.sent_count || 0), 0);
         const pendingCount = badanData.filter((item) => item.status === 'pending').length;
 
+        const successLogs = logs.filter((l) => l.status === 'success').length;
+        const failedLogs = logs.filter((l) => l.status === 'failed').length;
+
         setStats({
           badanCount: badanData.length,
           sentCount,
           pendingCount,
           logCount: logs.length
         });
+        setSendSummary({ success: successLogs, failed: failedLogs });
         setBadan(badanData);
       } catch (err) {
         console.error(err);
@@ -200,19 +225,40 @@ const Dashboard = () => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
+  const filteredBadan = useMemo(() => {
+    const q = filterText.toLowerCase();
+    return badan.filter((b) => {
+      const matchText =
+        b.nama_badan_publik?.toLowerCase().includes(q) ||
+        b.kategori?.toLowerCase().includes(q) ||
+        b.email?.toLowerCase().includes(q) ||
+        b.pertanyaan?.toLowerCase().includes(q);
+      const matchKategori = filterKategori ? b.kategori === filterKategori : true;
+      const matchStatus = filterStatus ? b.status === filterStatus : true;
+      return matchText && matchKategori && matchStatus;
+    });
+  }, [badan, filterText, filterKategori, filterStatus]);
+
   const toggleAll = () => {
-    if (selectedIds.length === badan.length) {
+    if (selectedIds.length === filteredBadan.length) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(badan.map((b) => b.id));
+      setSelectedIds(filteredBadan.map((b) => b.id));
     }
   };
+
+  const selectFiltered = () => {
+    setSelectedIds(filteredBadan.map((b) => b.id));
+  };
+
+  const clearSelection = () => setSelectedIds([]);
 
   const handleFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      setStatusMessage('Ukuran file maksimal 5MB agar tidak ditolak server.');
+    const limit = 7 * 1024 * 1024;
+    if (file.size > limit) {
+      setStatusMessage('Ukuran file maksimal 7MB agar tidak ditolak server.');
       return;
     }
     const reader = new FileReader();
@@ -222,7 +268,8 @@ const Dashboard = () => {
         filename: file.name,
         content: base64,
         encoding: 'base64',
-        contentType: file.type
+        contentType: file.type,
+        size: file.size
       });
       setAttachmentPreview({
         type: file.type,
@@ -230,6 +277,7 @@ const Dashboard = () => {
       });
     };
     reader.readAsDataURL(file);
+    setStatusMessage(`Lampiran: ${file.name} (${formatBytes(file.size)})`);
   };
 
   const placeholderKeys = useMemo(
@@ -280,6 +328,22 @@ const Dashboard = () => {
     return renderTemplate(bodyTemplate, sampleTarget);
   }, [badan, selectedIds, bodyTemplate, renderTemplate]);
 
+  const attachmentInfo = useMemo(() => {
+    if (!attachment) return null;
+    return `${attachment.filename || 'Lampiran'}${attachment.size ? ` (${formatBytes(attachment.size)})` : ''}${
+      attachment.contentType ? ` • ${attachment.contentType}` : ''
+    }`;
+  }, [attachment]);
+
+  const filteredAssignments = useMemo(() => {
+    const q = assignmentSearch.toLowerCase();
+    return assignments.filter(
+      (a) =>
+        a.badanPublik?.nama_badan_publik?.toLowerCase().includes(q) ||
+        a.badanPublik?.kategori?.toLowerCase().includes(q)
+    );
+  }, [assignments, assignmentSearch]);
+
   const proceedSend = async () => {
     setStatusMessage('');
     if (!hasConfig) {
@@ -318,6 +382,10 @@ const Dashboard = () => {
       const results = res.data?.results || [];
       const failed = results.filter((r) => r.status === 'failed').length;
       const success = results.filter((r) => r.status === 'success').length;
+      setSendSummary((prev) => ({
+        success: (prev.success || 0) + success,
+        failed: (prev.failed || 0) + failed
+      }));
 
       if (success === 0) {
         setStatusMessage(failed > 0 ? 'Gagal mengirim: semua target gagal. Periksa email tujuan.' : 'Gagal mengirim.');
@@ -369,6 +437,26 @@ const Dashboard = () => {
     setConfirmOpen(true);
   };
 
+  const verifySmtpQuick = async () => {
+    setStatusMessage('');
+    setToast(null);
+    setSmtpTesting(true);
+    try {
+      const res = await api.post('/config/smtp/verify', {});
+      setToast({ message: res.data?.message || 'SMTP siap digunakan.', type: 'success' });
+      await checkConfig();
+    } catch (err) {
+      setToast({
+        message:
+          err.response?.data?.message ||
+          'SMTP tidak valid. Periksa email + App Password di Settings (pastikan 2FA/IMAP aktif).',
+        type: 'error'
+      });
+    } finally {
+      setSmtpTesting(false);
+    }
+  };
+
   const cards = [
     { title: 'Total Badan Publik', value: stats.badanCount, accent: 'emerald', hint: 'Basis target aktif' },
     { title: 'Email Terkirim', value: stats.sentCount, accent: 'sky', hint: 'Total kirim akumulasi' },
@@ -378,50 +466,109 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-slate-500">Halo, {user?.username}</p>
-          <h1 className="text-2xl font-bold text-slate-900">Kirim Email Massal Sekarang</h1>
-          <p className="text-sm text-slate-500">Pilih penerima, isi template, lampirkan KTP, lalu kirim.</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-4 col-span-1 lg:col-span-2 flex items-center justify-between">
+          <div>
+            <p className="text-sm text-slate-500">Halo, {user?.username}</p>
+            <h1 className="text-2xl font-bold text-slate-900">Kirim Email Massal Sekarang</h1>
+            <p className="text-sm text-slate-500">Pilih penerima, isi template, lampirkan KTP, lalu kirim.</p>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <span className="px-3 py-2 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-600">
+              Peran: {user?.role}
+            </span>
+            <div className="flex items-center gap-2">
+              <span
+                title={hasConfig ? 'SMTP tersimpan' : 'Belum ada SMTP, buka Settings'}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
+                  hasConfig ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+                }`}
+              >
+                {hasConfig ? 'SMTP siap' : 'SMTP belum siap'}
+              </span>
+              <button
+                onClick={verifySmtpQuick}
+                disabled={smtpTesting}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold disabled:opacity-60"
+              >
+                {smtpTesting ? 'Menguji...' : 'Cek SMTP'}
+              </button>
+              <Link
+                to="/settings"
+                className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold shadow-soft hover:bg-slate-800"
+              >
+                Settings
+              </Link>
+            </div>
+          </div>
         </div>
-        <span className="px-3 py-2 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-600">
-          Peran: {user?.role}
-        </span>
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-soft p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold text-slate-900">Ringkasan kirim</div>
+              <p className="text-xs text-slate-500">Status log terakhir</p>
+            </div>
+            <Link to="/history" className="text-xs font-semibold text-primary hover:underline">
+              Lihat log
+            </Link>
+          </div>
+          <div className="flex items-center gap-3 text-sm">
+            <span className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Berhasil: {sendSummary.success}
+            </span>
+            <span className="px-3 py-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-200">
+              Gagal: {sendSummary.failed}
+            </span>
+          </div>
+        </div>
       </div>
 
-      
       {!isAdmin && (
         <div className="grid grid-cols-1 gap-3">
-          <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-2xl p-4 shadow-soft">
-            <span className="w-3 h-3 rounded-full bg-slate-400 shadow-inner" />
-            <div>
-              <div className="text-sm font-semibold text-slate-900">Kuota harian</div>
-              <div className="text-xs text-slate-600">
-                {quota
-                  ? `${quota.used_today}/${quota.daily_quota} terpakai (sisa ${quota.remaining ?? quota.daily_quota - quota.used_today})`
-                  : 'Memuat...'}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-soft">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">Kuota harian</div>
+                <div className="text-xs text-slate-600">
+                  {quota
+                    ? `${quota.used_today}/${quota.daily_quota} terpakai (sisa ${
+                        quota.remaining ?? quota.daily_quota - quota.used_today
+                      })`
+                    : 'Memuat...'}
+                </div>
               </div>
-              <div className="flex items-center gap-2 mt-1">
-                <button
-                  onClick={() => setQuotaModal(true)}
-                  className="text-xs px-3 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
+              <button
+                onClick={() => setQuotaModal(true)}
+                className="text-xs px-3 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
+              >
+                Ajukan kuota
+              </button>
+            </div>
+            <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    quota && quota.daily_quota ? Math.round((quota.used_today / quota.daily_quota) * 100) : 0
+                  )}%`
+                }}
+              />
+            </div>
+            <div className="flex items-center gap-2 mt-2 text-xs text-slate-600">
+              {quotaRequests[0] && (
+                <span
+                  className={`text-[11px] px-2 py-1 rounded-full ${
+                    quotaRequests[0].status === 'approved'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : quotaRequests[0].status === 'rejected'
+                      ? 'bg-rose-100 text-rose-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}
                 >
-                  Ajukan kuota tambahan
-                </button>
-                {quotaRequests[0] && (
-                  <span
-                    className={`text-[11px] px-2 py-1 rounded-full ${
-                      quotaRequests[0].status === 'approved'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : quotaRequests[0].status === 'rejected'
-                        ? 'bg-rose-100 text-rose-700'
-                        : 'bg-amber-100 text-amber-700'
-                    }`}
-                  >
-                    Permintaan terakhir: {quotaRequests[0].status}
-                  </span>
-                )}
-              </div>
+                  Permintaan terakhir: {quotaRequests[0].status}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -440,6 +587,14 @@ const Dashboard = () => {
                 Anda ditugaskan ke {assignments.length} badan publik
               </h2>
             </div>
+            {assignments.length > 0 && (
+              <button
+                onClick={() => setAssignmentsModal(true)}
+                className="text-xs px-3 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
+              >
+                Lihat semua
+              </button>
+            )}
           </div>
           {assignments.length === 0 ? (
             <div className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
@@ -467,12 +622,13 @@ const Dashboard = () => {
       <ComposerSection
         form={form}
         setForm={setForm}
-        attachment={attachment}
-        attachmentPreview={attachmentPreview}
+      attachment={attachment}
+      attachmentPreview={attachmentPreview}
+      attachmentInfo={attachmentInfo}
         handleFile={handleFile}
         previewBody={previewBody}
         selectedCount={selectedIds.length}
-        totalCount={badan.length}
+        totalCount={filteredBadan.length}
         statusMessage={statusMessage}
         handleSend={handleSend}
         sending={sending}
@@ -488,11 +644,21 @@ const Dashboard = () => {
       />
 
       <RecipientTable
-        badan={badan}
+        badan={filteredBadan}
         selectedIds={selectedIds}
         loading={loading}
         toggleAll={toggleAll}
         toggleSelect={toggleSelect}
+        filterText={filterText}
+        setFilterText={setFilterText}
+        filterKategori={filterKategori}
+        setFilterKategori={setFilterKategori}
+        filterStatus={filterStatus}
+        setFilterStatus={setFilterStatus}
+        categories={categories}
+        statuses={statuses}
+        selectFiltered={selectFiltered}
+        clearSelection={clearSelection}
       />
 
       <SuccessModal info={successInfo} onClose={() => setSuccessInfo(null)} />
@@ -567,6 +733,46 @@ const Dashboard = () => {
               >
                 Kirim
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isAdmin && assignmentsModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl p-5 space-y-4 border border-slate-200">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Penugasan Anda</h3>
+                <p className="text-sm text-slate-600">Cari badan publik yang ditugaskan.</p>
+              </div>
+              <button
+                onClick={() => setAssignmentsModal(false)}
+                className="text-slate-400 hover:text-slate-700 text-xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            <input
+              value={assignmentSearch}
+              onChange={(e) => setAssignmentSearch(e.target.value)}
+              placeholder="Cari nama/kategori"
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-[320px] overflow-auto">
+              {filteredAssignments.length === 0 ? (
+                <div className="text-sm text-slate-500 col-span-3">Tidak ada data.</div>
+              ) : (
+                filteredAssignments.map((a) => (
+                  <div
+                    key={a.badan_publik_id}
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-700"
+                  >
+                    <div className="font-semibold text-slate-900">{a.badanPublik?.nama_badan_publik}</div>
+                    <div className="text-xs text-slate-500">{a.badanPublik?.kategori}</div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
