@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../services/api';
 
-const KipFeedCard = ({ intervalMs = 10000, compact = true }) => {
+const KipFeedCard = ({ intervalMs = 10000, compact = true, cardHeight = 'h-[160px]' }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -52,6 +52,15 @@ const KipFeedCard = ({ intervalMs = 10000, compact = true }) => {
 
   const current = useMemo(() => items[index] || null, [items, index]);
 
+  const toSummarySnippet = (text) => {
+    if (!text) return '';
+    const cleaned = String(text).replace(/\s+/g, ' ').trim();
+    const matches = cleaned.match(/[^.!?]+[.!?]+/g);
+    let snippet = matches && matches.length ? matches[0].trim() : cleaned;
+    if (snippet.length > 160) snippet = `${snippet.slice(0, 160).trim()}...`;
+    return snippet;
+  };
+
   const formatDate = (iso) => {
     if (!iso) return '';
     const d = new Date(iso);
@@ -63,10 +72,12 @@ const KipFeedCard = ({ intervalMs = 10000, compact = true }) => {
     });
   };
 
-  const titleClass = compact ? 'text-sm font-semibold' : 'text-base font-semibold';
+  const titleClass = compact ? 'text-[13px] font-semibold' : 'text-sm font-semibold';
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-soft lg:col-span-2 p-3 space-y-2">
+    <div
+      className={`bg-white rounded-2xl border border-slate-200 shadow-soft lg:col-span-2 p-3 space-y-2 ${cardHeight}`}
+    >
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold text-slate-900">Berita KIP</h2>
         {items.length > 1 && (
@@ -76,38 +87,44 @@ const KipFeedCard = ({ intervalMs = 10000, compact = true }) => {
         )}
       </div>
 
-      {loading ? (
-        <div className="text-xs text-slate-500">Memuat berita...</div>
-      ) : error ? (
-        <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-2 py-1">
-          {error}
-        </div>
-      ) : !current ? (
-        <div className="text-xs text-slate-500">Belum ada berita terkait KIP.</div>
-      ) : (
-        <a
-          href={current.link}
-          target="_blank"
-          rel="noreferrer"
-          className={`block rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100/60 transition px-3 py-2 transition-opacity duration-500 ${
-            fading ? 'opacity-0' : 'opacity-100'
-          }`}
-          title={current.title}
-        >
-          <div className={`${titleClass} text-slate-900 leading-snug line-clamp-2`}>
-            {current.title}
+      <div className="flex-1">
+        {loading ? (
+          <div className="h-full flex items-center justify-center text-xs text-slate-500">Memuat berita...</div>
+        ) : error ? (
+          <div className="h-full flex items-center justify-center text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-2 py-1">
+            {error}
           </div>
-          <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500">
-            <span>{current.source || 'Portal berita'}</span>
-            <span>{formatDate(current.publishedAt)}</span>
+        ) : !current ? (
+          <div className="h-full flex items-center justify-center text-xs text-slate-500">
+            Belum ada berita terkait KIP.
           </div>
-          {!compact && current.summary && (
-            <div className="text-xs text-slate-600 mt-1 leading-5 line-clamp-2">
-              {current.summary}
+        ) : (
+          <a
+            href={current.link}
+            target="_blank"
+            rel="noreferrer"
+            className={`h-full flex flex-col justify-between rounded-xl border border-slate-100 bg-slate-50 hover:bg-slate-100/60 transition px-3 py-2 transition-opacity duration-500 ${fading ? 'opacity-0' : 'opacity-100'
+              }`}
+            title={current.title}
+          >
+            <div>
+              <div className={`${titleClass} text-slate-900 leading-snug line-clamp-2`}>
+                {current.title}
+              </div>
+              {current.summary && (
+                <div className="text-[11px] text-slate-600 mt-1 leading-tight line-clamp-2">
+                  {toSummarySnippet(current.summary)}
+                </div>
+              )}
             </div>
-          )}
-        </a>
-      )}
+
+            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+              <span className="truncate">{current.source || 'Portal berita'}</span>
+              <span>{formatDate(current.publishedAt)}</span>
+            </div>
+          </a>
+        )}
+      </div>
     </div>
   );
 };

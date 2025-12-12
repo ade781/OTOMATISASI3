@@ -50,6 +50,48 @@ const FEEDS = [
     url: 'https://news.google.com/rss/search?q=keterbukaan%20data%20pemerintah&hl=id&gl=ID&ceid=ID:id',
     sourceFromTitle: true,
     skipKeywordFilter: true
+  },
+  {
+    name: 'Bing News (Keterbukaan Informasi)',
+    url: 'https://www.bing.com/news/search?q=keterbukaan%20informasi%20publik&format=rss',
+    skipKeywordFilter: true,
+    isBing: true
+  },
+  {
+    name: 'Bing News (Komisi Informasi)',
+    url: 'https://www.bing.com/news/search?q=komisi%20informasi&format=rss',
+    skipKeywordFilter: true,
+    isBing: true
+  },
+  {
+    name: 'Bing News (PPID)',
+    url: 'https://www.bing.com/news/search?q=ppid&format=rss',
+    skipKeywordFilter: true,
+    isBing: true
+  },
+  {
+    name: 'Bing News (Sengketa Informasi)',
+    url: 'https://www.bing.com/news/search?q=sengketa%20informasi%20publik&format=rss',
+    skipKeywordFilter: true,
+    isBing: true
+  },
+  {
+    name: 'Bing News (Transparansi Pemerintah)',
+    url: 'https://www.bing.com/news/search?q=transparansi%20pemerintah&format=rss',
+    skipKeywordFilter: true,
+    isBing: true
+  },
+  {
+    name: 'Bing News (Open Data Indonesia)',
+    url: 'https://www.bing.com/news/search?q=open%20data%20indonesia&format=rss',
+    skipKeywordFilter: true,
+    isBing: true
+  },
+  {
+    name: 'Bing News (Keterbukaan Data)',
+    url: 'https://www.bing.com/news/search?q=keterbukaan%20data%20pemerintah&format=rss',
+    skipKeywordFilter: true,
+    isBing: true
   }
 ];
 
@@ -101,22 +143,88 @@ const extractSourceFromTitle = (rawTitle, fallbackSource) => {
   return { title: String(rawTitle).trim(), source: fallbackSource };
 };
 
+const normalizeText = (text) =>
+  String(text || '')
+    .toLowerCase()
+    .replace(/<[^>]+>/g, '')
+    .replace(/[\s\u00A0]+/g, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .trim();
+
+const isSummaryUseful = (title, summary) => {
+  const t = normalizeText(title);
+  const s = normalizeText(summary);
+  if (!s || s.length < 20) return false;
+  if (!t) return true;
+
+  const rawLines = String(summary || '')
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (rawLines.length >= 2) {
+    const shortLines = rawLines.filter((l) => l.length < 140);
+    if (shortLines.length >= 2) return false;
+  }
+
+  const doubleSpaceCount = (summary.match(/\u00A0\u00A0/g) || []).length;
+  if (doubleSpaceCount >= 2) return false;
+
+  const tWords = new Set(t.split(' ').filter(Boolean));
+  const sWords = s.split(' ').filter(Boolean);
+  let extraWords = 0;
+  for (const w of sWords) {
+    if (!tWords.has(w)) extraWords += 1;
+    if (extraWords > 3) break;
+  }
+  if (extraWords <= 3) return false;
+
+  if (s.includes(t) && s.length <= t.length + 40) return false;
+  if (t.includes(s) && t.length <= s.length + 40) return false;
+
+  return true;
+};
+
+const resolveBingLink = (rawLink) => {
+  try {
+    const url = new URL(rawLink);
+    const actual = url.searchParams.get('url');
+    if (actual) return decodeURIComponent(actual);
+  } catch (_) {}
+  return rawLink;
+};
+
+const sourceFromUrl = (link, fallback) => {
+  try {
+    const url = new URL(link);
+    const host = url.hostname.replace(/^www\./, '');
+    return host || fallback;
+  } catch (_) {
+    return fallback;
+  }
+};
+
 const fetchOneFeed = async (feed) => {
   try {
     const res = await parser.parseURL(feed.url);
     const items = (res.items || []).map((it) => {
       const publishedAt = it.isoDate || it.pubDate || it.published || null;
-      const { title, source } = feed.sourceFromTitle
+      const rawTitle = it.title || '';
+      const { title, source: sourceFromTitleValue } = feed.sourceFromTitle
         ? extractSourceFromTitle(it.title, feed.name)
-        : { title: it.title || '', source: feed.name };
+        : { title: rawTitle, source: feed.name };
+      const rawLink = it.link || it.guid || '';
+      const link = feed.isBing ? resolveBingLink(rawLink) : rawLink;
+      const derivedSource = feed.isBing ? sourceFromUrl(link, feed.name) : null;
+      const rawSummary =
+        it.contentSnippet ||
+        (it.content ? String(it.content).replace(/<[^>]+>/g, '').slice(0, 200) : '');
+      const summary = isSummaryUseful(title, rawSummary) ? rawSummary : '';
       return {
         title,
-        link: it.link || it.guid || '',
-        summary:
-          it.contentSnippet ||
-          (it.content ? String(it.content).replace(/<[^>]+>/g, '').slice(0, 200) : ''),
+        link,
+        summary,
         publishedAt,
-        source,
+        source: derivedSource || sourceFromTitleValue || feed.name,
         forceInclude: Boolean(feed.skipKeywordFilter)
       };
     });
@@ -144,7 +252,8 @@ const listKipNews = async (req, res) => {
 
     const filtered = merged
       .filter((it) => withinLastMonth(it.publishedAt))
-      .filter((it) => it.forceInclude || matchesKeywords(it.title, it.summary));
+      .filter((it) => it.forceInclude || matchesKeywords(it.title, it.summary))
+      .filter((it) => it.summary || !it.forceInclude);
 
     const seen = new Set();
     const unique = [];
