@@ -2,7 +2,7 @@ const nodemailer = require('nodemailer');
 const { BadanPublik, EmailLog, SmtpConfig, User, Assignment } = require('../models');
 const emailEventBus = require('../utils/eventBus');
 
-const ATTACHMENT_LIMIT_BYTES = 7 * 1024 * 1024;
+const ATTACHMENT_LIMIT_BYTES = 2 * 1024 * 1024;
 
 const formatBytes = (bytes) => {
   if (!bytes || Number.isNaN(bytes)) return '0 B';
@@ -132,13 +132,20 @@ const sendBulkEmail = async (req, res) => {
     if (totalAttachmentBytes > ATTACHMENT_LIMIT_BYTES) {
       return res
         .status(400)
-        .json({ message: 'Lampiran terlalu besar (>7MB). Kompres atau perkecil file KTP.' });
+        .json({ message: 'Lampiran terlalu besar (>2MB). Kompres atau perkecil file KTP.' });
     }
 
     const safeMeta = meta || {};
+    const escapeHtml = (val) =>
+      String(val)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     const toHtml = (val) => {
       if (val == null) return '';
-      return String(val).replace(/\n/g, '<br/>');
+      return escapeHtml(val).replace(/\n/g, '<br/>');
     };
 
     const buildReplacements = (target) => {

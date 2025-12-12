@@ -1,5 +1,10 @@
 import { computeDueInfo } from '../../utils/workdays';
 
+const isValidEmail = (val) => {
+  if (!val) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+};
+
 const RecipientTable = ({
   badan,
   selectedIds,
@@ -21,6 +26,8 @@ const RecipientTable = ({
   onUpdateMonitoring
 }) => {
   const holidayList = holidays || [];
+  const validIds = badan.filter((b) => isValidEmail(b.email)).map((b) => b.id);
+  const allValidSelected = validIds.length > 0 && validIds.every((id) => selectedIds.includes(id));
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-soft p-5 space-y-3">
@@ -91,7 +98,7 @@ const RecipientTable = ({
               <th className="px-4 py-3">
                 <input
                   type="checkbox"
-                  checked={selectedIds.length === badan.length && badan.length > 0}
+                  checked={allValidSelected}
                   onChange={toggleAll}
                 />
               </th>
@@ -120,6 +127,7 @@ const RecipientTable = ({
               badan.map((item, idx) => {
                 const monitor = monitoringMap[item.id] || {};
                 const startDate = monitor.startDate || '';
+                const emailValid = isValidEmail(item.email);
                 const dueInfo = computeDueInfo({
                   startDate,
                   baseDays: 10,
@@ -130,18 +138,24 @@ const RecipientTable = ({
                 return (
                   <tr
                     key={item.id}
-                    className={`border-t border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'} hover:bg-primary/5 transition`}
+                    className={`border-t border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'} hover:bg-primary/5 transition ${
+                      emailValid ? '' : 'opacity-60'
+                    }`}
                   >
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(item.id)}
                         onChange={() => toggleSelect(item.id)}
+                        disabled={!emailValid}
+                        title={!emailValid ? 'Email kosong / tidak valid' : undefined}
                       />
                     </td>
                     <td className="px-4 py-3 font-semibold text-slate-900">{item.nama_badan_publik}</td>
                     <td className="px-4 py-3 text-slate-700">{item.kategori}</td>
-                    <td className="px-4 py-3 text-slate-700">{item.email}</td>
+                    <td className="px-4 py-3 text-slate-700">
+                      {emailValid ? item.email : <span className="text-slate-400 italic">Tidak ada email</span>}
+                    </td>
                     <td className="px-4 py-3 text-slate-700 max-w-3xl whitespace-pre-wrap">{item.pertanyaan}</td>
                     <td className="px-4 py-3 text-slate-700">{item.sent_count}</td>
                     <td className="px-4 py-3 text-slate-700 space-y-2 min-w-[220px]">

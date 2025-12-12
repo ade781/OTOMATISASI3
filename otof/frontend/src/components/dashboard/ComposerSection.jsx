@@ -148,7 +148,7 @@ const ComposerSection = ({
                 <input type="file" accept="image/*,.pdf" className="hidden" onChange={handleFile} />
                 <span className="px-3 py-2 rounded-lg bg-primary text-white text-xs font-semibold">Pilih File</span>
                 <span className="text-sm text-slate-700">
-                  {attachment?.filename || 'Unggah KTP (jpg/png/pdf, maks 7MB)'}
+                  {attachment?.filename || 'Unggah KTP (jpg/png/pdf, maks 2MB)'}
                 </span>
               </label>
               {attachmentInfo && (

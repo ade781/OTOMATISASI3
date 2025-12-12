@@ -90,8 +90,10 @@ const SmtpModal = ({ open, onClose }) => {
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="text-slate-400 hover:text-slate-700 transition text-xl font-bold"
+            aria-label="Tutup"
           >
             ×
           </button>

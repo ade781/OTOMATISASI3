@@ -68,7 +68,9 @@ const HistoryLog = () => {
 
   useEffect(() => {
     if (!user) return;
-    const streamUrl = `${baseUrl}/email/streamxuserId=${user.id}&username=${user.username}`;
+    const streamUrl = `${baseUrl}/email/stream?userId=${user.id}&username=${encodeURIComponent(
+      user.username
+    )}`;
     setStreamStatus('connecting');
     const es = new EventSource(streamUrl);
 

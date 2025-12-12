@@ -53,7 +53,7 @@ const QuoteCard = ({ quotes = [], badge = 'Transparansi', title = 'Kutipan keter
       if (index < text.length) {
         typingTimeoutRef.current = setTimeout(typeNext, 28);
       } else {
-        cycleTimeoutRef.current = setTimeout(() => shuffleQuote(), 5000);
+        cycleTimeoutRef.current = setTimeout(() => shuffleQuote(), 7000);
       }
     };
 

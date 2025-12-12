@@ -1,4 +1,5 @@
 const { BadanPublik, Assignment } = require('../models');
+const { Op } = require('sequelize');
 
 const isValidEmail = (val) => {
   if (!val) return false;
@@ -52,21 +53,24 @@ const getBadanPublik = async (req, res) => {
 
 const createBadanPublik = async (req, res) => {
   try {
-    const payload = req.body;
-    if (!payload.nama_badan_publik || !payload.kategori || !payload.email) {
-      return res.status(400).json({ message: 'Nama, kategori, dan email wajib diisi' });
+    const payload = req.body || {};
+    if (!payload.nama_badan_publik || !payload.kategori) {
+      return res.status(400).json({ message: 'Nama dan kategori wajib diisi' });
     }
-    if (!isValidEmail(payload.email)) {
+    const email = payload.email ? String(payload.email).trim() : null;
+    if (email && !isValidEmail(email)) {
       return res.status(400).json({ message: 'Email tidak valid' });
     }
-    const existing = await BadanPublik.findOne({ where: { email: payload.email } });
-    if (existing) {
-      return res.status(400).json({ message: 'Email sudah terdaftar, hindari duplikasi' });
+    if (email) {
+      const existing = await BadanPublik.findOne({ where: { email } });
+      if (existing) {
+        return res.status(400).json({ message: 'Email sudah terdaftar, hindari duplikasi' });
+      }
     }
     const newData = await BadanPublik.create({
       nama_badan_publik: payload.nama_badan_publik,
       kategori: payload.kategori,
-      email: payload.email,
+      email,
       website: payload.website,
       pertanyaan: payload.pertanyaan,
       status: payload.status || 'pending',
@@ -90,10 +94,27 @@ const updateBadanPublik = async (req, res) => {
       return res.status(404).json({ message: 'Data tidak ditemukan' });
     }
 
+    let nextEmail = data.email;
+    if (payload.email !== undefined) {
+      const trimmed = String(payload.email || '').trim();
+      nextEmail = trimmed ? trimmed : null;
+      if (nextEmail && !isValidEmail(nextEmail)) {
+        return res.status(400).json({ message: 'Email tidak valid' });
+      }
+      if (nextEmail && nextEmail !== data.email) {
+        const existing = await BadanPublik.findOne({
+          where: { email: nextEmail, id: { [Op.ne]: data.id } }
+        });
+        if (existing) {
+          return res.status(400).json({ message: 'Email sudah terdaftar, hindari duplikasi' });
+        }
+      }
+    }
+
     await data.update({
       nama_badan_publik: payload.nama_badan_publik ?? data.nama_badan_publik,
       kategori: payload.kategori ?? data.kategori,
-      email: payload.email ?? data.email,
+      email: nextEmail,
       website: payload.website ?? data.website,
       pertanyaan: payload.pertanyaan ?? data.pertanyaan,
       status: payload.status ?? data.status,
@@ -161,7 +182,6 @@ const importBadanPublik = async (req, res) => {
     const uniqueEmailRows = Array.from(uniqueMap.values());
 
     // exclude existing emails in DB
-    const { Op } = require('sequelize');
     const existing = uniqueEmailRows.length
       ? await BadanPublik.findAll({
           where: { email: { [Op.in]: uniqueEmailRows.map((r) => r.email) } },

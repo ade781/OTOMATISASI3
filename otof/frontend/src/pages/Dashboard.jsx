@@ -48,6 +48,11 @@ const formatBytes = (bytes) => {
   return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${sizes[i]}`;
 };
 
+const isValidEmail = (val) => {
+  if (!val) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+};
+
 const Dashboard = () => {
   const { user } = useAuth();
   const { hasConfig, checkConfig } = useSmtp();
@@ -278,15 +283,18 @@ const Dashboard = () => {
   }, [badan, filterText, filterKategori, filterStatus]);
 
   const toggleAll = () => {
-    if (selectedIds.length === filteredBadan.length) {
+    const validIds = filteredBadan.filter((b) => isValidEmail(b.email)).map((b) => b.id);
+    if (validIds.length === 0) {
       setSelectedIds([]);
-    } else {
-      setSelectedIds(filteredBadan.map((b) => b.id));
+      return;
     }
+    const allSelected = validIds.every((id) => selectedIds.includes(id));
+    setSelectedIds(allSelected ? [] : validIds);
   };
 
   const selectFiltered = () => {
-    setSelectedIds(filteredBadan.map((b) => b.id));
+    const validIds = filteredBadan.filter((b) => isValidEmail(b.email)).map((b) => b.id);
+    setSelectedIds(validIds);
   };
 
   const clearSelection = () => setSelectedIds([]);
@@ -294,9 +302,9 @@ const Dashboard = () => {
   const handleFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const limit = 5 * 1024 * 1024; // 5MB untuk menghindari payload terlalu besar di backend
+    const limit = 2 * 1024 * 1024; // 2MB agar payload aman dan sesuai batas backend
     if (file.size > limit) {
-      setStatusMessage('Ukuran file maksimal 5MB agar tidak ditolak server (sesuaikan resolusi/kompres).');
+      setStatusMessage('Ukuran file maksimal 2MB agar tidak ditolak server (sesuaikan resolusi/kompres).');
       return;
     }
     const reader = new FileReader();

@@ -425,7 +425,6 @@ const BadanPublik = () => {
               <div className="col-span-1">
                 <label className="text-sm font-semibold text-slate-700">Email</label>
                 <input
-                  required
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
