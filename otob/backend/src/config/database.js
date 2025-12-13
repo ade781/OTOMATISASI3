@@ -1,21 +1,17 @@
 const { Sequelize } = require('sequelize');
-const dotenv = require('dotenv');
+require('dotenv').config();
 
-dotenv.config();
-
-const sequelize = new Sequelize(
-  process.env.DB_NAME || 'oto2_db',
-  process.env.DB_USER || 'root',
-  process.env.DB_PASS || '',
-  {
-    host: process.env.DB_HOST || 'localhost',
-    dialect: 'mysql',
-    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
-    logging: false,
-    define: {
-      underscored: true
+// Gunakan connection string dari env variable DATABASE_URL
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+  dialect: 'postgres', // Ganti ke postgres
+  protocol: 'postgres',
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false 
     }
-  }
-);
+  },
+  logging: false
+});
 
 module.exports = sequelize;
