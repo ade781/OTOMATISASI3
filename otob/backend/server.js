@@ -1,2 +1,4 @@
-// Alias agar perintah "node server.js" tetap berfungsi
-require('./src/server');
+// Entry untuk serverless (Vercel): export Express app tanpa app.listen()
+const app = require('./src/app');
+
+module.exports = app;

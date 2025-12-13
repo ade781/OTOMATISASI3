@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { Op } = require('sequelize');
 const { UjiAksesReport, BadanPublik, User, Assignment } = require('../models');
 const {
@@ -16,6 +17,10 @@ const ensureUploadsDir = (dir) => {
     // ignore
   }
 };
+
+const getUploadsBaseDir = () =>
+  process.env.UPLOADS_DIR ||
+  (process.env.VERCEL ? path.join(os.tmpdir(), 'uploads') : path.join(__dirname, '..', '..', 'uploads'));
 
 const userCanAccessBadanPublik = async (user, badanPublikId) => {
   if (user?.role === 'admin') return true;
@@ -248,7 +253,7 @@ const uploadEvidence = async (req, res) => {
 };
 
 const getMulterStoragePath = (reportId, questionKey) =>
-  path.join(__dirname, '..', '..', 'uploads', 'uji-akses-reports', String(reportId), String(questionKey));
+  path.join(getUploadsBaseDir(), 'uji-akses-reports', String(reportId), String(questionKey));
 
 const ensureReportUploadDir = (reportId, questionKey) => {
   const dir = getMulterStoragePath(reportId, questionKey);
