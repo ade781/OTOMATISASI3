@@ -1,4 +1,5 @@
 const { Sequelize } = require('sequelize');
+<<<<<<< HEAD
 const path = require('path');
 
 // Pastikan bisa menemukan .env walau dijalankan dari folder lain (mis. `otob/`)
@@ -37,5 +38,21 @@ const buildMysql = () =>
   );
 
 const sequelize = process.env.DATABASE_URL ? buildPostgres() : buildMysql();
+=======
+require('dotenv').config();
+
+// Gunakan connection string dari env variable DATABASE_URL
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
+  dialect: 'postgres', // Ganti ke postgres
+  protocol: 'postgres',
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false 
+    }
+  },
+  logging: false
+});
+>>>>>>> 020726c2893995478732cebf6d0d90a14768f723
 
 module.exports = sequelize;
