@@ -35,7 +35,13 @@ const RecipientTable = ({
   clearSelection,
   holidays = [],
   monitoringMap = {},
-  onUpdateMonitoring
+  onUpdateMonitoring,
+  maxRows,
+  setMaxRows,
+  totalFiltered,
+  page,
+  setPage,
+  totalPages
 }) => {
   const holidayList = holidays || [];
   const validIds = badan.filter((b) => isValidEmail(b.email)).map((b) => b.id);
@@ -68,6 +74,44 @@ const RecipientTable = ({
             >
               {selectedIds.length === badan.length && badan.length > 0 ? 'Batal pilih semua' : 'Pilih semua'}
             </button>
+            <div className="flex items-center gap-2 text-sm text-slate-600">
+              <span>Max baris:</span>
+              <select
+                value={maxRows}
+                onChange={(e) => setMaxRows(Number(e.target.value))}
+                className="border border-slate-200 rounded-lg px-2 py-1 text-sm"
+              >
+                {[10, 25, 50, 100, 200, 0].map((n) => (
+                  <option key={n} value={n}>
+                    {n === 0 ? 'Semua' : n}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-slate-500">
+                Menampilkan {badan.length} / {totalFiltered}
+              </span>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2 text-sm text-slate-600">
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm disabled:opacity-50"
+                >
+                  Prev
+                </button>
+                <span className="text-xs text-slate-500">
+                  Hal {page}/{totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            )}
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

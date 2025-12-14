@@ -101,12 +101,6 @@ const AdminUjiAksesReports = () => {
           <h1 className="text-2xl font-bold text-slate-900">Admin - Laporan Uji Akses</h1>
           <p className="text-sm text-slate-600">Filter, sort, dan lihat detail laporan.</p>
         </div>
-        <button
-          onClick={fetchReports}
-          className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
-        >
-          Refresh
-        </button>
       </div>
 
       <div className="bg-white rounded-3xl border border-slate-200 shadow-soft p-5 space-y-3">
@@ -175,7 +169,7 @@ const AdminUjiAksesReports = () => {
               <div className="mt-4 text-2xl font-extrabold text-slate-900 leading-none">{duplicateSummary.length}</div>
               <div className="flex-1 text-[11px] text-slate-600 max-h-[48px] overflow-auto space-y-1 leading-tight">
                 {duplicateSummary.length === 0 ? (
-                  <div className="text-right pr-1 mt-autoS">Tidak ada nama badan publik duplikat.</div>
+                  <div className="text-right pr-1 mt-auto">Tidak ada nama badan publik duplikat.</div>
                 ) : (
                   duplicateSummary.map((item) => (
                     <div key={item.name} className="flex justify-between gap-2">

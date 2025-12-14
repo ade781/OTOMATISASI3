@@ -36,7 +36,7 @@ const createUser = async (req, res) => {
 const listUsers = async (_req, res) => {
   try {
     const users = await User.findAll({
-      attributes: ['id', 'username', 'role'],
+      attributes: ['id', 'username', 'role', 'daily_quota'],
       include: [{ model: SmtpConfig, as: 'smtpConfig', attributes: ['id'] }],
       order: [['id', 'ASC']]
     });
@@ -44,6 +44,7 @@ const listUsers = async (_req, res) => {
       id: u.id,
       username: u.username,
       role: u.role,
+      daily_quota: u.daily_quota,
       hasSmtp: Boolean(u.smtpConfig)
     }));
     return res.json(mapped);
@@ -67,10 +68,34 @@ const getMe = async (req, res) => {
   }
 };
 
+// Admin update role
+const updateRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    if (!['user', 'admin'].includes(role)) {
+      return res.status(400).json({ message: 'Role harus user/admin' });
+    }
+    if (Number(id) === req.user.id) {
+      return res.status(400).json({ message: 'Tidak boleh mengganti role diri sendiri' });
+    }
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User tidak ditemukan' });
+    }
+    await user.update({ role });
+    return res.json({ message: 'Role diperbarui', user: { id: user.id, role: user.role } });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Gagal memperbarui role' });
+  }
+};
+
 module.exports = {
   createUser,
   listUsers,
   getMe,
+  updateRole,
   deleteUser: async (req, res) => {
     try {
       const { id } = req.params;

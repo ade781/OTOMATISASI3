@@ -117,6 +117,8 @@ const Dashboard = () => {
   const [customValues, setCustomValues] = useState({});
   const [holidays, setHolidays] = useState([]);
   const [monitoringMap, setMonitoringMap] = useState(() => getMonitoringMap());
+  const [maxRows, setMaxRows] = useState(50);
+  const [tablePage, setTablePage] = useState(1);
   const templates = useMemo(() => {
     const overrideMap = new Map(customTemplates.map((t) => [t.id, t]));
     const defaultIds = new Set(DEFAULT_TEMPLATES.map((t) => t.id));
@@ -282,8 +284,33 @@ const Dashboard = () => {
     });
   }, [badan, filterText, filterKategori, filterStatus]);
 
+  const displayedBadan = useMemo(() => {
+    const limit = Number(maxRows) || 0;
+    if (limit > 0) {
+      const start = (tablePage - 1) * limit;
+      return filteredBadan.slice(start, start + limit);
+    }
+    return filteredBadan;
+  }, [filteredBadan, maxRows, tablePage]);
+
+  const totalTablePages = useMemo(() => {
+    const limit = Number(maxRows) || 0;
+    if (limit <= 0) return 1;
+    return Math.max(1, Math.ceil(filteredBadan.length / limit));
+  }, [filteredBadan.length, maxRows]);
+
+  useEffect(() => {
+    setTablePage(1);
+  }, [filterText, filterKategori, filterStatus, maxRows]);
+
+  useEffect(() => {
+    if (tablePage > totalTablePages) {
+      setTablePage(totalTablePages);
+    }
+  }, [tablePage, totalTablePages]);
+
   const toggleAll = () => {
-    const validIds = filteredBadan.filter((b) => isValidEmail(b.email)).map((b) => b.id);
+    const validIds = displayedBadan.filter((b) => isValidEmail(b.email)).map((b) => b.id);
     if (validIds.length === 0) {
       setSelectedIds([]);
       return;
@@ -293,7 +320,7 @@ const Dashboard = () => {
   };
 
   const selectFiltered = () => {
-    const validIds = filteredBadan.filter((b) => isValidEmail(b.email)).map((b) => b.id);
+    const validIds = displayedBadan.filter((b) => isValidEmail(b.email)).map((b) => b.id);
     setSelectedIds(validIds);
   };
 
@@ -615,7 +642,7 @@ const Dashboard = () => {
       />
 
       <RecipientTable
-        badan={filteredBadan}
+        badan={displayedBadan}
         selectedIds={selectedIds}
         loading={loading}
         toggleAll={toggleAll}
@@ -633,6 +660,12 @@ const Dashboard = () => {
         holidays={holidays}
         monitoringMap={monitoringMap}
         onUpdateMonitoring={updateMonitoring}
+        maxRows={maxRows}
+        setMaxRows={setMaxRows}
+        totalFiltered={filteredBadan.length}
+        page={tablePage}
+        setPage={setTablePage}
+        totalPages={totalTablePages}
       />
 
       <SuccessModal info={successInfo} onClose={() => setSuccessInfo(null)} />

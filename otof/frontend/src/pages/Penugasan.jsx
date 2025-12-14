@@ -25,8 +25,6 @@ const Penugasan = () => {
   const [actioningId, setActioningId] = useState(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [baseline, setBaseline] = useState({ ids: [], quota: DEFAULT_QUOTA });
-  const [dirty, setDirty] = useState(false);
   const [recentlyChanged, setRecentlyChanged] = useState([]);
   const [selectedRequestIds, setSelectedRequestIds] = useState([]);
   const [detailRequest, setDetailRequest] = useState(null);
@@ -60,11 +58,14 @@ const Penugasan = () => {
           userList.some((u) => u.id.toString() === currentSelectedId);
         const nextSelected = stillValid ? currentSelectedId : firstUser?.id?.toString() || '';
         setSelectedUserId(nextSelected);
-        setDirty(false);
 
         if (!nextSelected) {
           setAssignedIds([]);
-          setBaseline({ ids: [], quota: DEFAULT_QUOTA });
+        } else {
+          const selectedUser = userList.find((u) => u.id.toString() === nextSelected);
+          if (selectedUser?.daily_quota != null) {
+            setQuota(selectedUser.daily_quota);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -84,7 +85,6 @@ const Penugasan = () => {
     const fetchAssignment = async () => {
       if (!selectedUserId) {
         setAssignedIds([]);
-        setBaseline({ ids: [], quota: DEFAULT_QUOTA });
         return;
       }
       try {
@@ -92,10 +92,9 @@ const Penugasan = () => {
         const ids = (assignRes.data || []).map((a) => a.badan_publik_id);
         setAssignedIds(ids);
         const selected = users.find((u) => u.id === Number(selectedUserId));
-        const nextQuota = selected?.daily_quota || DEFAULT_QUOTA;
-        setQuota(nextQuota);
-        setBaseline({ ids, quota: nextQuota });
-        setDirty(false);
+        if (selected?.daily_quota != null) {
+          setQuota(selected.daily_quota);
+        }
       } catch (err) {
         console.error(err);
       }
@@ -127,8 +126,6 @@ const Penugasan = () => {
       setMessage('Penugasan dan kuota disimpan');
       setToast({ message: 'Penugasan dan kuota disimpan', type: 'success' });
       await refreshData(true, selectedUserId);
-      setBaseline({ ids: [...assignedIds], quota: Number(quota) || DEFAULT_QUOTA });
-      setDirty(false);
     } catch (err) {
       const msg = err.response?.data?.message || 'Gagal menyimpan penugasan/kuota';
       setMessage(msg);
@@ -226,27 +223,14 @@ const Penugasan = () => {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  useEffect(() => {
-    const sameLength = baseline.ids.length === assignedIds.length;
-    const sameIds = sameLength && baseline.ids.every((id) => assignedIds.includes(id));
-    const sameQuota = Number(baseline.quota) === Number(quota);
-    setDirty(!(sameIds && sameQuota));
-  }, [assignedIds, quota, baseline]);
-
   const handleSelectUser = (id) => {
-    if (dirty && id.toString() !== selectedUserId) {
-      const confirmLeave = window.confirm('Perubahan belum disimpan. Pindah user dan buang perubahan?');
-      if (!confirmLeave) return;
-    }
     setSelectedUserId(id.toString());
-    setDirty(false);
-  };
-
-  const resetChanges = () => {
-    setAssignedIds(baseline.ids);
-    setQuota(baseline.quota);
-    setDirty(false);
-    setToast({ message: 'Perubahan penugasan dibatalkan', type: 'info' });
+    const selectedUser = users.find((u) => u.id === Number(id));
+    if (selectedUser) {
+      if (selectedUser.daily_quota != null) {
+        setQuota(selectedUser.daily_quota);
+      }
+    }
   };
 
   const handleSaveClick = () => {
@@ -289,6 +273,13 @@ const Penugasan = () => {
 
   const toggleRequestSelection = (id) => {
     setSelectedRequestIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const nameFontClass = (name) => {
+    const len = String(name || '').length;
+    if (len > 80) return 'text-[11px]';
+    if (len > 50) return 'text-xs';
+    return 'text-sm';
   };
 
   const toggleAllRequests = () => {
@@ -338,11 +329,10 @@ const Penugasan = () => {
             </span>
           )}
           <span
-            className={`px-3 py-2 rounded-xl text-sm border ${
-              unassignedCount
-                ? 'bg-rose-50 text-rose-700 border-rose-200'
-                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-            }`}
+            className={`px-3 py-2 rounded-xl text-sm border ${unassignedCount
+              ? 'bg-rose-50 text-rose-700 border-rose-200'
+              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              }`}
           >
             {unassignedCount ? `${unassignedCount} badan publik belum ada penugas` : 'Semua sudah ditugaskan'}
           </span>
@@ -374,27 +364,29 @@ const Penugasan = () => {
                   <div
                     key={u.id}
                     onClick={() => handleSelectUser(u.id)}
-                    className={`px-3 py-2 rounded-xl cursor-pointer border transition-all ${
-                      selectedUserId === u.id.toString()
-                        ? 'border-primary bg-emerald-50 text-emerald-700'
-                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-primary/50'
-                    }`}
+                    className={`px-3 py-2 rounded-xl cursor-pointer border transition-all ${selectedUserId === u.id.toString()
+                      ? 'border-primary bg-emerald-50 text-emerald-700'
+                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-primary/50'
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <div className="font-semibold">{u.username}</div>
                       <span
-                        className={`text-[11px] px-2 py-1 rounded-full border ${
-                          pendingByUser[u.id]
-                            ? 'bg-amber-100 text-amber-700 border-amber-200'
-                            : u.daily_quota > DEFAULT_QUOTA
-                            ? 'bg-slate-200 text-slate-800 border-slate-300'
-                            : 'bg-slate-100 text-slate-600 border-slate-200'
-                        }`}
+                        className={`text-[11px] px-2 py-1 rounded-full border ${pendingByUser[u.id]
+                          ? 'bg-amber-100 text-amber-700 border-amber-200'
+                          : (u.daily_quota ?? DEFAULT_QUOTA) > DEFAULT_QUOTA
+                          ? 'bg-slate-200 text-slate-800 border-slate-300'
+                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                          }`}
                       >
-                        {pendingByUser[u.id] ? `${pendingByUser[u.id]} req` : `kuota ${u.daily_quota}/hari`}
+                        {pendingByUser[u.id]
+                          ? `${pendingByUser[u.id]} req`
+                          : `kuota ${u.daily_quota ?? DEFAULT_QUOTA}/hari`}
                       </span>
                     </div>
-                    <div className="text-xs text-slate-500">Kuota {u.daily_quota}/hari - ID #{u.id}</div>
+                    <div className="text-xs text-slate-500">
+                      Kuota {u.daily_quota ?? DEFAULT_QUOTA}/hari - ID #{u.id}
+                    </div>
                   </div>
                 ))}
               {users.filter((u) => u.role === 'user').length === 0 && (
@@ -452,7 +444,7 @@ const Penugasan = () => {
                       <div>
                         <div className="text-sm font-semibold text-slate-800">{r.user?.username}</div>
                         <p className="text-[11px] text-slate-500">
-                          Meminta {r.requested_quota}/hari • {new Date(r.createdAt).toLocaleDateString('id-ID')}
+                          Menambah {r.requested_quota}/hari • {new Date(r.createdAt).toLocaleDateString('id-ID')}
                         </p>
                       </div>
                       <span className="text-[11px] px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
@@ -504,15 +496,8 @@ const Penugasan = () => {
                   1) pilih user · 2) checklist badan publik · 3) atur kuota (default 20/hari) · 4) simpan
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                {dirty && (
-                  <span className="px-3 py-2 rounded-xl bg-amber-100 text-amber-800 text-sm border border-amber-200">
-                    Perubahan belum disimpan
-                  </span>
-                )}
-                <div className="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-sm border border-slate-200">
-                  {selectedUserId ? `${assignedIds.length} ditugaskan` : 'Pilih user dulu'}
-                </div>
+              <div className="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-sm border border-slate-200">
+                {selectedUserId ? `${assignedIds.length} ditugaskan` : 'Pilih user dulu'}
               </div>
             </div>
 
@@ -533,25 +518,15 @@ const Penugasan = () => {
                   min={1}
                   value={quota}
                   onChange={(e) => setQuota(e.target.value)}
-                  className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                  placeholder="disarankan 20"
+                  disabled={!selectedUserId}
+                  className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary text-sm disabled:opacity-60"
+                  placeholder={selectedUserId ? undefined : 'Pilih user dulu'}
                 />
-                <p className="text-[11px] text-slate-500 mt-1">Default 20/hari · sesuaikan jika perlu</p>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Kuota aktif: {selectedUserId ? `${quota ?? DEFAULT_QUOTA}/hari` : '-'}
+                </p>
               </div>
               <div className="flex items-center gap-2 self-end">
-                <button
-                  onClick={toggleAll}
-                  className="px-4 py-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
-                >
-                  {assignedIds.length === badan.length && badan.length > 0 ? 'Batal pilih semua' : 'Pilih semua'}
-                </button>
-                <button
-                  onClick={resetChanges}
-                  disabled={!dirty}
-                  className="px-4 py-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm disabled:opacity-50"
-                >
-                  Cancel
-                </button>
                 <button
                   onClick={handleSaveClick}
                   disabled={saving}
@@ -636,9 +611,13 @@ const Penugasan = () => {
                     pagedBadan.map((item, idx) => (
                       <tr
                         key={item.id}
-                        className={`border-t border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'} ${
-                          recentlyChanged.includes(item.id) ? 'bg-emerald-50/70' : ''
-                        }`}
+                        className={`border-t border-slate-100 ${assignmentsMap[item.id]
+                          ? 'bg-slate-200/50'
+                          : idx % 2 === 0
+                            ? 'bg-white'
+                            : 'bg-slate-50/60'
+                          } ${recentlyChanged.includes(item.id) ? 'bg-emerald-50/70' : ''
+                          }`}
                       >
                         <td className="px-4 py-3 sticky left-0 bg-inherit">
                           <input
@@ -647,7 +626,14 @@ const Penugasan = () => {
                             onChange={() => toggleAssign(item.id)}
                           />
                         </td>
-                        <td className="px-4 py-3 font-semibold text-slate-900">{item.nama_badan_publik}</td>
+                        <td className="px-4 py-3 font-semibold text-slate-900 max-w-[360px]">
+                          <div
+                            className={`truncate ${nameFontClass(item.nama_badan_publik)}`}
+                            title={item.nama_badan_publik}
+                          >
+                            {item.nama_badan_publik}
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-slate-700">{item.email}</td>
                         <td className="px-4 py-3 text-slate-700">
                           {assignmentsMap[item.id] ? assignmentsMap[item.id] : 'Belum ditugaskan'}

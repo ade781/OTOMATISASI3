@@ -17,6 +17,8 @@ const AddUser = () => {
   const [resetLoading, setResetLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [roleChangeUser, setRoleChangeUser] = useState(null);
+  const [roleChangeLoading, setRoleChangeLoading] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 8;
 
@@ -99,6 +101,23 @@ const AddUser = () => {
       setMessage(err.response?.data?.message || 'Gagal reset password');
     } finally {
       setResetLoading(false);
+    }
+  };
+
+  const handleChangeRole = async () => {
+    if (!roleChangeUser) return;
+    setRoleChangeLoading(true);
+    setMessage('');
+    try {
+      const nextRole = roleChangeUser.role === 'admin' ? 'user' : 'admin';
+      const res = await api.patch(`/users/${roleChangeUser.id}/role`, { role: nextRole });
+      setMessage(res.data?.message || 'Role diubah');
+      await loadUsers();
+      setRoleChangeUser(null);
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Gagal mengubah role');
+    } finally {
+      setRoleChangeLoading(false);
     }
   };
 
@@ -229,12 +248,13 @@ const AddUser = () => {
                 <th className="px-4 py-3 text-left">Role</th>
                 <th className="px-4 py-3 text-left">SMTP</th>
                 <th className="px-4 py-3 text-left">Aksi</th>
+                <th className="px-4 py-3 text-left">Ganti role</th>
               </tr>
             </thead>
             <tbody>
               {pagedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-4 text-center text-slate-500">
+                  <td colSpan={6} className="px-4 py-4 text-center text-slate-500">
                     Belum ada user. Tambah user pertama untuk mulai penugasan.
                   </td>
                 </tr>
@@ -278,6 +298,19 @@ const AddUser = () => {
                       >
                         {deletingId === u.id ? 'Menghapus...' : 'Hapus'}
                       </button>
+                    </td>
+                    <td className="px-4 py-2">
+                      {u.id === user?.id ? (
+                        <span className="text-xs text-slate-400">-</span>
+                      ) : (
+                        <button
+                          onClick={() => setRoleChangeUser(u)}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs"
+                          title="Ubah role"
+                        >
+                          {u.role === 'admin' ? 'Turunkan' : 'Jadikan admin'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -388,6 +421,47 @@ const AddUser = () => {
                 className="px-5 py-2 rounded-xl bg-primary text-white font-semibold shadow-soft hover:bg-emerald-700 disabled:opacity-60"
               >
                 {resetLoading ? 'Memproses...' : 'Reset'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {roleChangeUser && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 border border-slate-200">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Ubah role</h3>
+                <p className="text-sm text-slate-600">
+                  User <span className="font-semibold text-slate-900">{roleChangeUser.username}</span> sekarang{' '}
+                  <span className="font-semibold text-slate-900">{roleChangeUser.role}</span>. Ganti?
+                </p>
+                <div className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Peringatan: mengganti role akan mengubah akses halaman dan hak admin. Pastikan Anda memilih user yang benar.
+                </div>
+              </div>
+              <button
+                onClick={() => setRoleChangeUser(null)}
+                className="text-slate-400 hover:text-slate-700 text-xl font-bold"
+                aria-label="Tutup"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setRoleChangeUser(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleChangeRole}
+                disabled={roleChangeLoading}
+                className="px-5 py-2 rounded-xl bg-rose-600 text-white font-semibold shadow-soft hover:bg-rose-700 disabled:opacity-60"
+              >
+                {roleChangeLoading ? 'Memproses...' : 'Ganti role'}
               </button>
             </div>
           </div>

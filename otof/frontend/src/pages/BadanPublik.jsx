@@ -16,17 +16,13 @@ const emptyForm = {
   thread_id: ''
 };
 
-const expectedHeaders = [
-  'Nama Badan Publik',
-  'Kategori',
-  'Website',
-  'Pertanyaan',
-  'Email',
-  'Status',
-  'Thread Id'
+const requiredFields = [
+  { key: 'nama_badan_publik', label: 'Nama' },
+  { key: 'kategori', label: 'Kategori' },
+  { key: 'email', label: 'Email' },
+  { key: 'website', label: 'Website' },
+  { key: 'pertanyaan', label: 'Pertanyaan' }
 ];
-const optionalHeaders = ['Email'];
-const requiredHeaders = expectedHeaders.filter((h) => !optionalHeaders.includes(h));
 
 const BadanPublik = () => {
   const { user } = useAuth();
@@ -40,6 +36,15 @@ const BadanPublik = () => {
   const [statusMessage, setStatusMessage] = useState('');
   const [importOpen, setImportOpen] = useState(false);
   const [importPreview, setImportPreview] = useState([]);
+  const [importHeaders, setImportHeaders] = useState([]);
+  const [importRows, setImportRows] = useState([]);
+  const [importMapping, setImportMapping] = useState(() => {
+    const init = {};
+    requiredFields.forEach((f) => {
+      init[f.key] = '';
+    });
+    return init;
+  });
   const [importError, setImportError] = useState('');
   const [emailFilter, setEmailFilter] = useState('all');
   const [holidays, setHolidays] = useState([]);
@@ -73,7 +78,7 @@ const BadanPublik = () => {
     loadHolidays();
   }, []);
 
-  const samplePreview = useMemo(() => data.slice(0, 5), [data]);
+  const samplePreview = useMemo(() => data.slice(0, 3), [data]);
   const filteredData = useMemo(() => {
     if (emailFilter === 'with-email') return data.filter((d) => d.email);
     if (emailFilter === 'no-email') return data.filter((d) => !d.email);
@@ -132,6 +137,8 @@ const BadanPublik = () => {
     if (!file) return;
     setImportError('');
     setImportPreview([]);
+    setImportHeaders([]);
+    setImportRows([]);
     try {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array' });
@@ -142,57 +149,84 @@ const BadanPublik = () => {
         return;
       }
       const header = rows[0].map((h) => String(h || '').trim());
-      const normalizedHeader = header.map((h) => h.toLowerCase());
-      const normalizedRequired = requiredHeaders.map((h) => h.toLowerCase());
-
-      const headerValid =
-        normalizedHeader.length >= normalizedRequired.length &&
-        normalizedRequired.every((h) => normalizedHeader.includes(h));
-
-      if (!headerValid) {
-        setImportError('Struktur header tidak sesuai. Ikuti contoh template. Kolom Email opsional.');
-        return;
-      }
-
       const dataRows = rows.slice(1).filter((r) => r.some((cell) => cell));
-      const objs = dataRows.map((r) => {
-        const map = Object.fromEntries(header.map((h, idx) => [h, r[idx]]));
-        const email = String(map['Email'] ?? '').trim();
-        return {
-          nama_badan_publik: String(map['Nama Badan Publik'] ?? '').trim(),
-          kategori: String(map['Kategori'] ?? '').trim(),
-          website: String(map['Website'] ?? '').trim(),
-          pertanyaan: String(map['Pertanyaan'] ?? '').trim(),
-          email,
-          status: String(map['Status'] ?? '').trim() || 'pending',
-          thread_id: String(map['Thread Id'] ?? '').trim()
-        };
-      });
+      setImportHeaders(header);
+      setImportRows(dataRows);
 
-      setImportPreview(objs.slice(0, 5));
+      // auto-guess mapping based on header names
+      const lowerHeader = header.map((h) => h.toLowerCase());
+      const nextMap = {};
+      requiredFields.forEach((f) => {
+        const idx = lowerHeader.findIndex((h) => h.includes(f.label.toLowerCase()));
+        nextMap[f.key] = idx >= 0 ? header[idx] : '';
+      });
+      setImportMapping(nextMap);
+
+      const previewObjs = buildMappedPreview(dataRows, header, nextMap);
+      setImportPreview(previewObjs.slice(0, 5));
     } catch (err) {
       console.error(err);
       setImportError('Gagal membaca file. Pastikan format CSV/XLSX.');
     }
   };
 
+  const buildMappedPreview = (rows, header, mapping) =>
+    rows.map((r) => {
+      const rowMap = Object.fromEntries(header.map((h, idx) => [h, r[idx]]));
+      const obj = {
+        nama_badan_publik: '',
+        kategori: '',
+        email: '',
+        website: '',
+        pertanyaan: '',
+        status: 'pending',
+        thread_id: ''
+      };
+      requiredFields.forEach((f) => {
+        const selectedHeader = mapping[f.key];
+        obj[f.key] = String(rowMap[selectedHeader] ?? '').trim();
+      });
+      return obj;
+    });
+
+  useEffect(() => {
+    if (!importRows.length) return;
+    const previewObjs = buildMappedPreview(importRows, importHeaders, importMapping);
+    setImportPreview(previewObjs.slice(0, 5));
+  }, [importRows, importHeaders, importMapping]);
+
   const submitImport = async () => {
-    if (importPreview.length === 0) {
+    const missing = requiredFields.filter((f) => !importMapping[f.key]);
+    if (missing.length) {
+      setImportError(`Pilih kolom untuk: ${missing.map((m) => m.label).join(', ')}`);
+      return;
+    }
+    if (importRows.length === 0) {
       setImportError('Tidak ada data untuk diimport.');
       return;
     }
+
+    const mapped = buildMappedPreview(importRows, importHeaders, importMapping);
     try {
-      const payloadRecords = importPreview.map((r) => {
+      const payloadRecords = mapped.map((r) => {
         const clean = { ...r };
         if (!clean.email) {
           delete clean.email;
         }
+        clean.status = clean.status || 'pending';
+        clean.thread_id = clean.thread_id || '';
         return clean;
       });
       await api.post('/badan-publik/import', { records: payloadRecords });
       setImportError('');
       setImportOpen(false);
-      setStatusMessage(`Import berhasil (${importPreview.length} data contoh; total mengikuti file).`);
+      setStatusMessage(`Import berhasil (${payloadRecords.length} data).`);
+      setImportHeaders([]);
+      setImportRows([]);
+      setImportPreview([]);
+      const resetMap = {};
+      requiredFields.forEach((f) => (resetMap[f.key] = ''));
+      setImportMapping(resetMap);
       fetchData();
     } catch (err) {
       setImportError(err.response?.data?.message || 'Gagal import data');
@@ -278,29 +312,30 @@ const BadanPublik = () => {
           </span>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="min-w-full text-xs">
             <thead className="bg-gradient-to-r from-slate-50 to-white text-slate-600">
               <tr>
-                <th className="px-4 py-3 text-left w-[28%]">Nama</th>
-                <th className="px-4 py-3 text-left w-[14%]">Kategori</th>
-                <th className="px-4 py-3 text-left w-[18%]">Email</th>
-                <th className="px-4 py-3 text-left w-[18%]">Website</th>
-                <th className="px-4 py-3 text-left w-[22%] min-w-[320px]">Pertanyaan</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Tenggat</th>
-                {isAdmin && <th className="px-4 py-3 text-left">Aksi</th>}
+                <th className="px-3 py-2 text-left w-[50px]">No</th>
+                <th className="px-3 py-2 text-left w-[28%]">Nama</th>
+                <th className="px-3 py-2 text-left w-[14%]">Kategori</th>
+                <th className="px-3 py-2 text-left w-[18%]">Email</th>
+                <th className="px-3 py-2 text-left w-[18%]">Website</th>
+                <th className="px-3 py-2 text-left w-[22%] min-w-[320px]">Pertanyaan</th>
+                <th className="px-3 py-2 text-left">Status</th>
+                <th className="px-3 py-2 text-left">Tenggat</th>
+                {isAdmin && <th className="px-3 py-2 text-left">Aksi</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-slate-500" colSpan={isAdmin ? 8 : 7}>
+                  <td className="px-3 py-4 text-center text-slate-500" colSpan={isAdmin ? 8 : 7}>
                     Memuat data...
                   </td>
                 </tr>
               ) : filteredData.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-center text-slate-500" colSpan={isAdmin ? 8 : 7}>
+                  <td className="px-3 py-4 text-center text-slate-500" colSpan={isAdmin ? 8 : 7}>
                     Tidak ada data sesuai filter ini.
                   </td>
                 </tr>
@@ -310,9 +345,10 @@ const BadanPublik = () => {
                     key={item.id}
                     className={`border-t border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}
                   >
-                    <td className="px-4 py-3 font-semibold text-slate-900">{truncate(item.nama_badan_publik, 70)}</td>
-                    <td className="px-4 py-3 text-slate-700">{truncate(item.kategori, 16)}</td>
-                    <td className="px-4 py-3 text-slate-700">
+                    <td className="px-3 py-2 text-slate-700">{idx + 1}</td>
+                    <td className="px-3 py-2 font-semibold text-slate-900">{truncate(item.nama_badan_publik, 70)}</td>
+                    <td className="px-3 py-2 text-slate-700">{truncate(item.kategori, 16)}</td>
+                    <td className="px-3 py-2 text-slate-700">
                       {item.email ? (
                         <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">
                           {truncate(item.email, 36)}
@@ -323,11 +359,11 @@ const BadanPublik = () => {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">{truncate(item.website || '-', 36)}</td>
-                    <td className="px-4 py-3 text-slate-700 whitespace-pre-wrap w-[22%] min-w-[320px] align-top">
+                    <td className="px-3 py-2 text-slate-700">{truncate(item.website || '-', 36)}</td>
+                    <td className="px-3 py-2 text-slate-700 whitespace-pre-wrap w-[22%] min-w-[320px] align-top">
                       {truncate(item.pertanyaan || '-', 60)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-semibold ${
                           item.status === 'sent'
@@ -338,7 +374,7 @@ const BadanPublik = () => {
                         {item.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-700">
+                    <td className="px-3 py-2 text-slate-700">
                       {(() => {
                         const monitor = monitoringMap[item.id] || {};
                         const info = computeDueInfo({
@@ -365,7 +401,7 @@ const BadanPublik = () => {
                       })()}
                     </td>
                     {isAdmin && (
-                      <td className="px-4 py-3 space-x-2">
+                      <td className="px-3 py-2 space-x-2">
                         <button
                           onClick={() => openForm(item)}
                           className="text-primary font-semibold hover:underline"
@@ -486,12 +522,13 @@ const BadanPublik = () => {
 
       {importOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-6 space-y-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-slate-900">Import CSV/Excel</h2>
                 <p className="text-sm text-slate-600">
-                  Ikuti struktur header: {expectedHeaders.join(', ')}. Kolom Email opsional/ boleh kosong.
+                  Pilih pemetaan 5 kolom wajib: Nama, Kategori, Email, Website, Pertanyaan. Kolom lain akan diisi
+                  default (status pending).
                 </p>
               </div>
               <button
@@ -519,16 +556,48 @@ const BadanPublik = () => {
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-600">
                 <div className="font-semibold text-slate-800 mb-1">Contoh header</div>
-                <pre className="whitespace-pre-wrap text-xs text-slate-600">
-                  {expectedHeaders.join(' | ')}
-                </pre>
+                <pre className="whitespace-pre-wrap text-xs text-slate-600">Nama | Kategori | Email | Website | Pertanyaan</pre>
                 <p className="text-xs text-slate-500 mt-2">
-                  Pastikan baris pertama adalah header. Preview di bawah menampilkan 5 data pertama (biasanya termasuk header).
+                  Pastikan baris pertama adalah header. Pilih kolom yang sesuai di bagian pemetaan.
                 </p>
               </div>
             </div>
 
             <div className="space-y-4">
+              {importHeaders.length > 0 ? (
+                <div className="border border-slate-200 rounded-xl p-3 bg-white">
+                  <div className="text-sm font-semibold text-slate-800 mb-2">Pilih kolom untuk 5 field wajib</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {requiredFields.map((f) => (
+                      <div key={f.key} className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-600">{f.label}</label>
+                        <select
+                          value={importMapping[f.key] || ''}
+                          onChange={(e) =>
+                            setImportMapping((prev) => ({
+                              ...prev,
+                              [f.key]: e.target.value
+                            }))
+                          }
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                        >
+                          <option value="">-- pilih kolom --</option>
+                          {importHeaders.map((h) => (
+                            <option key={h} value={h}>
+                              {h}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">Header terdeteksi: {importHeaders.join(' | ')}</p>
+                </div>
+              ) : (
+                <div className="border border-dashed border-slate-300 rounded-xl p-3 text-sm text-slate-600 bg-slate-50">
+                  Upload file terlebih dahulu untuk memilih mapping kolom.
+                </div>
+              )}
               <div className="border-2 border-emerald-200 bg-emerald-50 rounded-xl p-3 shadow-soft">
                 <div className="inline-flex items-center gap-2 px-2 py-1 rounded-lg bg-white border border-emerald-200 text-[11px] font-bold text-emerald-700 mb-2">
                   Contoh data (dari tabel saat ini)
@@ -537,14 +606,16 @@ const BadanPublik = () => {
                   <thead>
                     <tr>
                       <th className="text-left">Nama</th>
+                      <th className="text-left">Kategori</th>
                       <th className="text-left">Email</th>
-                      <th className="text-left">Status</th>
+                      <th className="text-left">Website</th>
+                      <th className="text-left">Pertanyaan</th>
                     </tr>
                   </thead>
                   <tbody>
                     {samplePreview.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="py-2 text-slate-500">
+                        <td colSpan={5} className="py-2 text-slate-500">
                           Belum ada data.
                         </td>
                       </tr>
@@ -552,8 +623,10 @@ const BadanPublik = () => {
                       samplePreview.map((row) => (
                         <tr key={row.id}>
                           <td className="py-1">{row.nama_badan_publik}</td>
+                          <td className="py-1">{row.kategori}</td>
                           <td className="py-1">{row.email}</td>
-                          <td className="py-1">{row.status}</td>
+                          <td className="py-1">{row.website}</td>
+                          <td className="py-1">{truncate(row.pertanyaan, 30)}</td>
                         </tr>
                       ))
                     )}
@@ -568,23 +641,27 @@ const BadanPublik = () => {
                   <thead>
                     <tr>
                       <th className="text-left">Nama</th>
+                      <th className="text-left">Kategori</th>
                       <th className="text-left">Email</th>
-                      <th className="text-left">Status</th>
+                      <th className="text-left">Website</th>
+                      <th className="text-left">Pertanyaan</th>
                     </tr>
                   </thead>
                   <tbody>
                     {importPreview.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="py-2 text-slate-500">
+                        <td colSpan={5} className="py-2 text-slate-500">
                           Upload file untuk melihat preview.
                         </td>
                       </tr>
                     ) : (
-                      importPreview.slice(0, 5).map((row, idx) => (
+                      importPreview.slice(0, 3).map((row, idx) => (
                         <tr key={idx}>
                           <td className="py-1">{row.nama_badan_publik}</td>
+                          <td className="py-1">{row.kategori}</td>
                           <td className="py-1">{row.email}</td>
-                          <td className="py-1">{row.status}</td>
+                          <td className="py-1">{row.website}</td>
+                          <td className="py-1">{truncate(row.pertanyaan, 30)}</td>
                         </tr>
                       ))
                     )}

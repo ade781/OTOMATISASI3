@@ -52,6 +52,12 @@ const createQuotaRequest = async (req, res) => {
     if (!requested_quota || requested_quota < 1) {
       return res.status(400).json({ message: 'requested_quota harus > 0' });
     }
+    const existing = await QuotaRequest.findOne({
+      where: { user_id: req.user.id, status: 'pending' }
+    });
+    if (existing) {
+      return res.status(400).json({ message: 'Masih ada permintaan kuota yang pending. Tunggu keputusan admin.' });
+    }
     const qr = await QuotaRequest.create({
       user_id: req.user.id,
       requested_quota,
@@ -116,7 +122,9 @@ const updateQuotaRequest = async (req, res) => {
     if (status === 'approved') {
       const user = await User.findByPk(qr.user_id);
       if (user) {
-        user.daily_quota = qr.requested_quota;
+        await resetIfNeeded(user);
+        user.daily_quota = user.daily_quota + qr.requested_quota; // tambahkan, bukan ganti
+        user.used_today = Math.max(0, user.used_today - qr.requested_quota); // beri ruang tambahan hari ini
         await user.save();
       }
     }
