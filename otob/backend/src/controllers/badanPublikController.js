@@ -94,6 +94,17 @@ const updateBadanPublik = async (req, res) => {
       return res.status(404).json({ message: 'Data tidak ditemukan' });
     }
 
+    // Non-admin hanya boleh mengubah data yang ditugaskan kepadanya, dan hanya kolom tertentu
+    const isAdmin = req.user.role === 'admin';
+    if (!isAdmin) {
+      const assigned = await Assignment.findOne({
+        where: { user_id: req.user.id, badan_publik_id: id }
+      });
+      if (!assigned) {
+        return res.status(403).json({ message: 'Akses ditolak: data ini tidak ditugaskan ke Anda.' });
+      }
+    }
+
     let nextEmail = data.email;
     if (payload.email !== undefined) {
       const trimmed = String(payload.email || '').trim();
@@ -111,15 +122,25 @@ const updateBadanPublik = async (req, res) => {
       }
     }
 
-    await data.update({
-      nama_badan_publik: payload.nama_badan_publik ?? data.nama_badan_publik,
-      kategori: payload.kategori ?? data.kategori,
-      email: nextEmail,
-      website: payload.website ?? data.website,
-      pertanyaan: payload.pertanyaan ?? data.pertanyaan,
-      status: payload.status ?? data.status,
-      sent_count: payload.sent_count ?? data.sent_count
-    });
+    // Build update payload berdasarkan role
+    const updatePayload = isAdmin
+      ? {
+          nama_badan_publik: payload.nama_badan_publik ?? data.nama_badan_publik,
+          kategori: payload.kategori ?? data.kategori,
+          email: nextEmail,
+          website: payload.website ?? data.website,
+          pertanyaan: payload.pertanyaan ?? data.pertanyaan,
+          status: payload.status ?? data.status,
+          sent_count: payload.sent_count ?? data.sent_count
+        }
+      : {
+          // user hanya boleh koreksi email/website/pertanyaan
+          email: nextEmail,
+          website: payload.website ?? data.website,
+          pertanyaan: payload.pertanyaan ?? data.pertanyaan
+        };
+
+    await data.update(updatePayload);
 
     return res.json(data);
   } catch (err) {

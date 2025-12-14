@@ -16,7 +16,7 @@ router.use(authMiddleware);
 router.get('/', listBadanPublik);
 router.get('/:id', getBadanPublik);
 router.post('/', requireAdmin, createBadanPublik);
-router.put('/:id', requireAdmin, updateBadanPublik);
+router.put('/:id', updateBadanPublik);
 router.delete('/:id', requireAdmin, deleteBadanPublik);
 router.post('/import', requireAdmin, importBadanPublik);
 

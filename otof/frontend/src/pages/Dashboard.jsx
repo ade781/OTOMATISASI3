@@ -680,44 +680,63 @@ const Dashboard = () => {
 
       {!isAdmin && quotaModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Ajukan Kuota Tambahan</h3>
-                <p className="text-sm text-slate-600">Saran default 40/hari. Isi angka dan alasan singkat.</p>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl p-6 border border-slate-200 space-y-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold border border-emerald-200">
+                  Ajukan Kuota Tambahan
+                  <span className="text-emerald-800">Rekomendasi 40/hari</span>
+                </div>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Permintaan ekstra untuk hari ini, tidak mengganti kuota harian Anda. Isi angka dan alasan singkat.
+                </p>
               </div>
               <button
                 onClick={() => setQuotaModal(false)}
-                className="text-slate-500 hover:text-slate-800 text-xl font-bold"
+                className="text-slate-400 hover:text-slate-700 text-xl font-bold"
+                aria-label="Tutup"
               >
                 X
               </button>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Kuota diminta</label>
-              <input
-                type="number"
-                min={1}
-                value={quotaRequest.requested_quota}
-                onChange={(e) =>
-                  setQuotaRequest((prev) => ({ ...prev, requested_quota: Number(e.target.value) }))
-                }
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700">Kuota tambahan yang diminta</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min={1}
+                    value={quotaRequest.requested_quota}
+                    onChange={(e) =>
+                      setQuotaRequest((prev) => ({ ...prev, requested_quota: Number(e.target.value) }))
+                    }
+                    className="w-full border border-slate-200 rounded-2xl px-4 py-3 pr-16 focus:outline-none focus:ring-2 focus:ring-primary text-lg font-semibold text-slate-900 shadow-sm"
+                    placeholder="40"
+                  />
+                  <span className="absolute inset-y-0 right-4 flex items-center text-xs text-slate-500">/hari</span>
+                </div>
+                <p className="text-xs text-slate-500">Angka positif, contoh 40 atau 50.</p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-slate-700">Alasan singkat</label>
+                  <span className="text-[11px] text-slate-400">Opsional tapi disarankan</span>
+                </div>
+                <textarea
+                  value={quotaRequest.reason}
+                  onChange={(e) => setQuotaRequest((prev) => ({ ...prev, reason: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary min-h-[120px] text-sm shadow-sm"
+                  placeholder="Contoh: Banyak permintaan baru hari ini, perlu tambahan slot."
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Alasan</label>
-              <textarea
-                value={quotaRequest.reason}
-                onChange={(e) => setQuotaRequest((prev) => ({ ...prev, reason: e.target.value }))}
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                rows={3}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
+
+            <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:justify-end gap-2">
               <button
                 onClick={() => setQuotaModal(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-semibold"
               >
                 Batal
               </button>
@@ -736,7 +755,7 @@ const Dashboard = () => {
                     });
                   }
                 }}
-                className="px-5 py-2 rounded-xl bg-primary text-white font-semibold shadow-soft hover:bg-emerald-700"
+                className="px-5 py-2 rounded-xl bg-primary text-white font-semibold shadow-soft hover:bg-emerald-700 text-sm"
               >
                 Kirim
               </button>

@@ -86,15 +86,20 @@ const BadanPublik = () => {
   }, [data, emailFilter]);
 
   const openForm = (item) => {
+    // Admin bisa tambah/edit; user hanya boleh edit data yang sudah ada (misal koreksi email)
+    if (!isAdmin && !item) {
+      setStatusMessage('Hanya admin yang bisa menambah data baru.');
+      return;
+    }
     if (item) {
       setEditingId(item.id);
       setFormData({
-        nama_badan_publik: item.nama_badan_publik,
-        kategori: item.kategori,
-        email: item.email,
+        nama_badan_publik: item.nama_badan_publik || '',
+        kategori: item.kategori || '',
+        email: item.email || '',
         website: item.website || '',
         pertanyaan: item.pertanyaan || '',
-        status: item.status,
+        status: item.status || 'pending',
         thread_id: item.thread_id || ''
       });
     } else {
@@ -106,6 +111,11 @@ const BadanPublik = () => {
 
   const saveForm = async (e) => {
     e.preventDefault();
+    // User boleh edit data (editingId ada), tapi tidak boleh tambah data baru
+    if (!isAdmin && !editingId) {
+      setStatusMessage('Hanya admin yang bisa menambah data baru.');
+      return;
+    }
     try {
       if (editingId) {
         await api.put(`/badan-publik/${editingId}`, formData);
@@ -122,6 +132,10 @@ const BadanPublik = () => {
   };
 
   const deleteData = async (id) => {
+    if (!isAdmin) {
+      setStatusMessage('Akses ditolak: hanya admin yang bisa menghapus data.');
+      return;
+    }
     if (!confirm('Hapus data ini?')) return;
     try {
       await api.delete(`/badan-publik/${id}`);
@@ -133,6 +147,10 @@ const BadanPublik = () => {
   };
 
   const handleImportFile = async (e) => {
+    if (!isAdmin) {
+      setImportError('Akses ditolak: import hanya untuk admin.');
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
     setImportError('');
@@ -196,6 +214,10 @@ const BadanPublik = () => {
   }, [importRows, importHeaders, importMapping]);
 
   const submitImport = async () => {
+    if (!isAdmin) {
+      setImportError('Akses ditolak: import hanya untuk admin.');
+      return;
+    }
     const missing = requiredFields.filter((f) => !importMapping[f.key]);
     if (missing.length) {
       setImportError(`Pilih kolom untuk: ${missing.map((m) => m.label).join(', ')}`);
@@ -323,7 +345,7 @@ const BadanPublik = () => {
                 <th className="px-3 py-2 text-left w-[22%] min-w-[320px]">Pertanyaan</th>
                 <th className="px-3 py-2 text-left">Status</th>
                 <th className="px-3 py-2 text-left">Tenggat</th>
-                {isAdmin && <th className="px-3 py-2 text-left">Aksi</th>}
+                <th className="px-3 py-2 text-left">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -400,22 +422,22 @@ const BadanPublik = () => {
                         );
                       })()}
                     </td>
-                    {isAdmin && (
-                      <td className="px-3 py-2 space-x-2">
-                        <button
-                          onClick={() => openForm(item)}
-                          className="text-primary font-semibold hover:underline"
-                        >
-                          Edit
-                        </button>
+                    <td className="px-3 py-2 space-x-2">
+                      <button
+                        onClick={() => openForm(item)}
+                        className="text-primary font-semibold hover:underline"
+                      >
+                        Edit
+                      </button>
+                      {isAdmin && (
                         <button
                           onClick={() => deleteData(item.id)}
                           className="text-rose-500 font-semibold hover:underline"
                         >
                           Hapus
                         </button>
-                      </td>
-                    )}
+                      )}
+                    </td>
                   </tr>
                 ))
               )}
@@ -426,81 +448,114 @@ const BadanPublik = () => {
 
       {formOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-40 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-slate-900">
-                {editingId ? 'Edit Badan Publik' : 'Tambah Badan Publik'}
-              </h2>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl p-6 space-y-4 border border-slate-200">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-semibold border border-primary/30">
+                  {editingId ? 'Mode Edit' : 'Mode Tambah'}
+                  <span className="text-slate-600">{isAdmin ? 'Admin' : 'User'}</span>
+                </div>
+                <h2 className="text-xl font-bold text-slate-900">
+                  {editingId ? 'Edit Badan Publik' : 'Tambah Badan Publik'}
+                </h2>
+                <p className="text-sm text-slate-600">
+                  Koreksi data (email/website) jika ada yang keliru. Admin bisa menambah entri baru.
+                </p>
+              </div>
               <button
                 onClick={() => setFormOpen(false)}
-                className="text-slate-500 hover:text-slate-800 text-xl font-bold"
+                className="text-slate-400 hover:text-slate-700 text-xl font-bold"
                 aria-label="Tutup"
               >
-                ×
+                X
               </button>
             </div>
-            <form onSubmit={saveForm} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="col-span-1">
-                <label className="text-sm font-semibold text-slate-700">Nama</label>
-                <input
-                  required
-                  value={formData.nama_badan_publik}
-                  onChange={(e) => setFormData({ ...formData, nama_badan_publik: e.target.value })}
-                  className="mt-1 w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+
+            <form onSubmit={saveForm} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-semibold text-slate-700">Nama</label>
+                  <input
+                    required
+                    value={formData.nama_badan_publik}
+                    onChange={(e) => setFormData({ ...formData, nama_badan_publik: e.target.value })}
+                    className="w-full border border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-semibold text-slate-700">Kategori</label>
+                  <input
+                    required
+                    value={formData.kategori}
+                    onChange={(e) => setFormData({ ...formData, kategori: e.target.value })}
+                    className="w-full border border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold text-slate-700">Email</label>
+                    <span className="text-[11px] text-slate-400">Boleh dikoreksi user</span>
+                  </div>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full border border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                    placeholder="nama@domain.com"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-semibold text-slate-700">Website</label>
+                  <input
+                    value={formData.website}
+                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                    className="w-full border border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                    placeholder="https://"
+                  />
+                </div>
               </div>
-              <div className="col-span-1">
-                <label className="text-sm font-semibold text-slate-700">Kategori</label>
-                <input
-                  required
-                  value={formData.kategori}
-                  onChange={(e) => setFormData({ ...formData, kategori: e.target.value })}
-                  className="mt-1 w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              <div className="col-span-1">
-                <label className="text-sm font-semibold text-slate-700">Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="mt-1 w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              <div className="col-span-1">
-                <label className="text-sm font-semibold text-slate-700">Website</label>
-                <input
-                  value={formData.website}
-                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                  className="mt-1 w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="text-sm font-semibold text-slate-700">Pertanyaan</label>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-slate-700">Pertanyaan</label>
+                  <span className="text-[11px] text-slate-400">Bisa multi-baris</span>
+                </div>
                 <textarea
                   value={formData.pertanyaan}
                   onChange={(e) => setFormData({ ...formData, pertanyaan: e.target.value })}
-                  className="mt-1 w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full border border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm min-h-[120px]"
                   rows={3}
                 />
               </div>
-              <div className="col-span-1">
-                <label className="text-sm font-semibold text-slate-700">Status</label>
-                <input
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="mt-1 w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-semibold text-slate-700">Status</label>
+                  <input
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full border border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-semibold text-slate-700">Thread Id</label>
+                  <input
+                    value={formData.thread_id}
+                    onChange={(e) => setFormData({ ...formData, thread_id: e.target.value })}
+                    className="w-full border border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                    placeholder="Opsional"
+                  />
+                </div>
               </div>
-              <div className="col-span-1">
-                <label className="text-sm font-semibold text-slate-700">Thread Id</label>
-                <input
-                  value={formData.thread_id}
-                  onChange={(e) => setFormData({ ...formData, thread_id: e.target.value })}
-                  className="mt-1 w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
-                />
+
+              <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs text-slate-600">
+                <span>Tip: User boleh koreksi email/website. Tambah data baru tetap oleh admin.</span>
+                <span className="px-2 py-1 rounded-full bg-white border border-slate-200 text-[11px]">
+                  {editingId ? `ID #${editingId}` : 'Entri baru'}
+                </span>
               </div>
-              <div className="col-span-2 flex justify-end gap-2">
+
+              <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setFormOpen(false)}

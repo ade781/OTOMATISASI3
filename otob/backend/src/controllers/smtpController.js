@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { ImapFlow } = require('imapflow');
 const { SmtpConfig } = require('../models');
 
 // Simpan atau perbarui SMTP per user
@@ -79,8 +80,46 @@ const verifySmtpConfig = async (req, res) => {
   }
 };
 
+// Verifikasi IMAP Gmail
+const verifyImapConfig = async (req, res) => {
+  try {
+    const { email_address, app_password } = req.body || {};
+    if (!email_address || !app_password) {
+      return res.status(400).json({ message: 'Email dan App Password wajib diisi' });
+    }
+
+    const client = new ImapFlow({
+      host: 'imap.gmail.com',
+      port: 993,
+      secure: true,
+      auth: {
+        user: email_address,
+        pass: app_password
+      }
+    });
+
+    try {
+      await client.connect();
+      await client.logout();
+      return res.json({ message: 'IMAP aktif dan kredensial valid.' });
+    } catch (err) {
+      console.error('IMAP verify failed', err);
+      return res.status(400).json({
+        message:
+          err?.response || err?.message || 'IMAP gagal diverifikasi. Pastikan IMAP diaktifkan dan App Password benar.'
+      });
+    } finally {
+      client.close?.();
+    }
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Gagal memverifikasi IMAP' });
+  }
+};
+
 module.exports = {
   saveSmtpConfig,
   checkSmtpConfig,
-  verifySmtpConfig
+  verifySmtpConfig,
+  verifyImapConfig
 };
