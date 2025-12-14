@@ -604,7 +604,7 @@ const Penugasan = () => {
                   ) : filteredBadan.length === 0 ? (
                     <tr>
                       <td className="px-4 py-6 text-center text-slate-500" colSpan={4}>
-                        Tidak ada data / tidak cocok dengan pencarian.
+                        Tidak ada data / tidak cocok dengan pencarian
                       </td>
                     </tr>
                   ) : (
