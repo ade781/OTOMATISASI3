@@ -15,7 +15,7 @@ import QuotaCard from '../components/dashboard/QuotaCard';
 import AssignmentsCard from '../components/dashboard/AssignmentsCard';
 import DEFAULT_TEMPLATES from '../constants/templates';
 import QUOTES from '../constants/quotes';
-import { getMonitoringMap, saveMonitoringMap } from '../utils/monitoring';
+import { fetchMonitoringMap, saveMonitoringEntry } from '../utils/monitoring';
 import { computeDueInfo } from '../utils/workdays';
 import { fetchHolidays } from '../services/holidays';
 
@@ -116,7 +116,18 @@ const Dashboard = () => {
   const [bodyTemplate, setBodyTemplate] = useState(DEFAULT_TEMPLATES[0].body);
   const [customValues, setCustomValues] = useState({});
   const [holidays, setHolidays] = useState([]);
-  const [monitoringMap, setMonitoringMap] = useState(() => getMonitoringMap());
+  const [monitoringMap, setMonitoringMap] = useState({});
+  useEffect(() => {
+    const loadMonitoring = async () => {
+      try {
+        const map = await fetchMonitoringMap();
+        setMonitoringMap(map);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadMonitoring();
+  }, []);
   const [maxRows, setMaxRows] = useState(50);
   const [tablePage, setTablePage] = useState(1);
   const templates = useMemo(() => {
@@ -249,22 +260,26 @@ const Dashboard = () => {
     setCustomValues((prev) => ({ ...prev, [field]: value }));
   };
 
-  const updateMonitoring = useCallback((id, updates) => {
-    setMonitoringMap((prev) => {
-      const next = {
-        ...prev,
-        [id]: {
-          status: 'menunggu',
-          extraDays: false,
-          ...prev[id],
-          ...updates,
-          updatedAt: new Date().toISOString()
-        }
-      };
-      saveMonitoringMap(next);
-      return next;
-    });
-  }, []);
+  const updateMonitoring = useCallback(async (id, updates) => {
+    setMonitoringMap((prev) => ({
+      ...prev,
+      [id]: {
+        status: 'menunggu',
+        extraDays: false,
+        ...prev[id],
+        ...updates,
+        updatedAt: new Date().toISOString()
+      }
+    }));
+    try {
+      await saveMonitoringEntry(id, {
+        startDate: updates.startDate ?? (monitoringMap[id]?.startDate || null),
+        extraDays: updates.extraDays ?? monitoringMap[id]?.extraDays ?? false
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }, [monitoringMap]);
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));

@@ -3,7 +3,7 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import * as XLSX from 'xlsx';
 import { computeDueInfo } from '../utils/workdays';
-import { getMonitoringMap, saveMonitoringMap } from '../utils/monitoring';
+import { fetchMonitoringMap, saveMonitoringEntry } from '../utils/monitoring';
 import { fetchHolidays } from '../services/holidays';
 
 const emptyForm = {
@@ -48,7 +48,7 @@ const BadanPublik = () => {
   const [importError, setImportError] = useState('');
   const [emailFilter, setEmailFilter] = useState('all');
   const [holidays, setHolidays] = useState([]);
-  const [monitoringMap, setMonitoringMap] = useState(() => getMonitoringMap());
+  const [monitoringMap, setMonitoringMap] = useState({});
 
   const fetchData = async () => {
     setLoading(true);
@@ -255,15 +255,31 @@ const BadanPublik = () => {
     }
   };
 
-  const updateMonitoring = (id, updates) => {
-    setMonitoringMap((prev) => {
-      const next = {
-        ...prev,
-        [id]: { status: 'menunggu', extraDays: false, ...prev[id], ...updates, updatedAt: new Date().toISOString() }
-      };
-      saveMonitoringMap(next);
-      return next;
-    });
+  useEffect(() => {
+    const loadMonitoring = async () => {
+      try {
+        const map = await fetchMonitoringMap();
+        setMonitoringMap(map);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    loadMonitoring();
+  }, []);
+
+  const updateMonitoring = async (id, updates) => {
+    setMonitoringMap((prev) => ({
+      ...prev,
+      [id]: { status: 'menunggu', extraDays: false, ...prev[id], ...updates, updatedAt: new Date().toISOString() }
+    }));
+    try {
+      await saveMonitoringEntry(id, {
+        startDate: updates.startDate ?? monitoringMap[id]?.startDate ?? null,
+        extraDays: updates.extraDays ?? monitoringMap[id]?.extraDays ?? false
+      });
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const truncate = (text, limit) => {

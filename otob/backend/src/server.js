@@ -13,6 +13,7 @@ const holidayRoutes = require('./routes/holidayRoutes');
 const newsRoutes = require('./routes/newsRoutes');
 const ujiAksesReportRoutes = require('./routes/ujiAksesReportRoutes');
 const adminUjiAksesReportRoutes = require('./routes/adminUjiAksesReportRoutes');
+const monitoringRoutes = require('./routes/monitoringRoutes');
 const path = require('path');
 
 dotenv.config();
@@ -38,6 +39,7 @@ app.use('/assignments', assignmentRoutes);
 app.use('/quota', quotaRoutes);
 app.use('/holidays', holidayRoutes);
 app.use('/news', newsRoutes);
+app.use('/monitoring', monitoringRoutes);
 
 // Static files untuk bukti dukung laporan uji akses
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
