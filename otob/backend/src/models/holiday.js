@@ -1,28 +1,23 @@
-const { DataTypes } = require('sequelize');
+import { Sequelize } from "sequelize";
+import db from "../config/database.js";
 
-module.exports = (sequelize) => {
-  const Holiday = sequelize.define(
-    'Holiday',
-    {
-      id: {
-        type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true
-      },
-      date: {
-        type: DataTypes.DATEONLY,
-        allowNull: false,
-        unique: true
-      },
-      name: {
-        type: DataTypes.STRING,
-        allowNull: false
-      }
-    },
-    {
-      tableName: 'Holidays'
-    }
-  );
+const Holiday = db.define("Holiday", {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    primaryKey: true,
+  },
+  date: {
+    type: Sequelize.DATEONLY,
+    allowNull: false,
+    unique: true,
+  },
+  name: {
+    type: Sequelize.STRING,
+    allowNull: false,
+  },
+}, {
+  tableName: "Holidays",
+});
+export default Holiday;
 
-  return Holiday;
-};

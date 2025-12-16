@@ -1,21 +1,18 @@
-const { Sequelize } = require('sequelize');
-const dotenv = require('dotenv');
+import { Sequelize } from "sequelize";
+import dotenv from "dotenv";
 
 dotenv.config();
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME || 'oto2_db',
-  process.env.DB_USER || 'root',
-  process.env.DB_PASS || '',
-  {
-    host: process.env.DB_HOST || 'localhost',
-    dialect: 'mysql',
-    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
-    logging: false,
-    define: {
-      underscored: true
-    }
-  }
-);
+const DB_NAME = process.env.DB_NAME || 'oto2_db'
+const DB_USERNAME = process.env.DB_USERNAME || 'root'
+const DB_PASSWORD = process.env.DB_PASSWORD || ''
+const DB_HOST = process.env.DB_HOST || 'localhost'
+console.log("DB_HOST:", DB_HOST);
 
-module.exports = sequelize;
+const db = new Sequelize(DB_NAME,DB_USERNAME,DB_PASSWORD,{
+    host: DB_HOST,
+    dialect:'mysql'
+})
+
+
+export default db;

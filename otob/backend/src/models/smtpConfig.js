@@ -1,37 +1,32 @@
-const { DataTypes } = require('sequelize');
+import { Sequelize } from "sequelize";
+import db from "../config/database.js";
 
-module.exports = (sequelize) => {
-  const SmtpConfig = sequelize.define(
-    'SmtpConfig',
-    {
-      id: {
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true
-      },
-      user_id: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        unique: true,
-        references: {
-          model: 'Users',
-          key: 'id'
-        },
-        onDelete: 'CASCADE'
-      },
-      email_address: {
-        type: DataTypes.STRING,
-        allowNull: false
-      },
-      app_password: {
-        type: DataTypes.STRING,
-        allowNull: false
-      }
+const SmtpConfig = db.define("SmtpConfig", {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    primaryKey: true,
+  },
+  user_id: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+    unique: true,
+    references: {
+      model: "Users",
+      key: "id",
     },
-    {
-      tableName: 'SmtpConfigs'
-    }
-  );
+    onDelete: "CASCADE",
+  },
+  email_address: {
+    type: Sequelize.STRING,
+    allowNull: false,
+  },
+  app_password: {
+    type: Sequelize.STRING,
+    allowNull: false,
+  },
+}, {
+  tableName: "SmtpConfigs",
+});
 
-  return SmtpConfig;
-};
+export default SmtpConfig;

@@ -79,7 +79,7 @@ const login = async (req, res) => {
 //nambah logout
 const logout = async (req, res) => {
   const refreshToken = req.cookies.refreshToken;
-  console.log({ refreshToken });
+  //console.log({ refreshToken });
 
   // Tidak ada refresh token? Langsung hapus cookie, tidak perlu sentuh DB
   if (!refreshToken) {

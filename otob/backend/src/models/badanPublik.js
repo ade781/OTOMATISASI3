@@ -1,60 +1,54 @@
-const { DataTypes } = require('sequelize');
+import { Sequelize } from "sequelize";
+import db from "../config/database.js";
 
-module.exports = (sequelize) => {
-  const BadanPublik = sequelize.define(
-    'BadanPublik',
-    {
-      id: {
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true
+const BadanPublik = db.define("BadanPublik", {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    primaryKey: true,
+  },
+  nama_badan_publik: {
+    type: Sequelize.STRING,
+    allowNull: false,
+  },
+  kategori: {
+    type: Sequelize.STRING,
+    allowNull: false,
+  },
+  email: {
+    type: Sequelize.STRING,
+    allowNull: true,
+    defaultValue: null,
+    validate: {
+      isEmail: {
+        args: true,
+        msg: "Email tidak valid",
       },
-      nama_badan_publik: {
-        type: DataTypes.STRING,
-        allowNull: false
-      },
-      kategori: {
-        type: DataTypes.STRING,
-        allowNull: false
-      },
-      email: {
-        type: DataTypes.STRING,
-        allowNull: true,
-        defaultValue: null,
-        validate: {
-          isEmail: {
-            args: true,
-            msg: 'Email tidak valid'
-          }
-        }
-      },
-      website: {
-        type: DataTypes.STRING,
-        allowNull: true
-      },
-      pertanyaan: {
-        type: DataTypes.TEXT,
-        allowNull: true
-      },
-      status: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        defaultValue: 'pending'
-      },
-      thread_id: {
-        type: DataTypes.STRING,
-        allowNull: true
-      },
-      sent_count: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        defaultValue: 0
-      }
     },
-    {
-      tableName: 'BadanPublik'
-    }
-  );
-
-  return BadanPublik;
-};
+  },
+  website: {
+    type: Sequelize.STRING,
+    allowNull: true,
+  },
+  pertanyaan: {
+    type: Sequelize.TEXT,
+    allowNull: true,
+  },
+  status: {
+    type: Sequelize.STRING,
+    allowNull: false,
+    defaultValue: "pending",
+  },
+  thread_id: {
+    type: Sequelize.STRING,
+    allowNull: true,
+  },
+  sent_count: {
+    type: Sequelize.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+  },
+}, {
+  tableName: "BadanPublik",
+});
+export default BadanPublik;

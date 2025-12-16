@@ -1,35 +1,29 @@
-const { DataTypes } = require('sequelize');
+import { Sequelize } from "sequelize";
+import db from "../config/database.js";
 
-module.exports = (sequelize) => {
-  const Assignment = sequelize.define(
-    'Assignment',
+const Assignment = db.define("Assignment", {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    primaryKey: true
+  },
+  user_id: {
+    type: Sequelize.INTEGER,
+    allowNull: false
+  },
+  badan_publik_id: {
+    type: Sequelize.INTEGER,
+    allowNull: false
+  }
+}, {
+  tableName: "Assignments",
+  indexes: [
     {
-      id: {
-        type: DataTypes.INTEGER,
-        autoIncrement: true,
-        primaryKey: true
-      },
-      user_id: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-      },
-      badan_publik_id: {
-        type: DataTypes.INTEGER,
-        allowNull: false
-      }
-    },
-    {
-      tableName: 'Assignments',
-      indexes: [
-        {
-          unique: true,
-          fields: ['user_id', 'badan_publik_id']
-        },
-        // Index bantu untuk pencarian tapi tidak memaksa unik (data lama bisa duplikat)
-        { fields: ['badan_publik_id'] }
-      ]
-    }
-  );
-
-  return Assignment;
-};
+      unique: true,
+      fields: ["user_id", "badan_publik_id"]
+    }, 
+    // Index bantu untuk pencarian tapi tidak memaksa unik (data lama bisa duplikat)
+    { fields: ["badan_publik_id"] }
+  ]
+});
+export default Assignment;
