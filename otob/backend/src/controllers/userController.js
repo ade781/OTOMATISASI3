@@ -5,12 +5,12 @@ import { User, Assignment, AssignmentHistory, SmtpConfig, EmailLog, QuotaRequest
 // REGISTER //baru nambahin pasword dan bcrypt
 const createUser = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, role } = req.body;
     const encryptPassword = await bcrypt.hash(password, 5);
     await User.create({
       username: username,
       password: encryptPassword,
-      role: "user",
+      role: role || "user",
       daily_quota: 20
     });
     res.status(201).json({ msg: "Register Berhasil" });

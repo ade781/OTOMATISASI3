@@ -25,7 +25,8 @@ const login = async (req, res) => {
           safeUserData,
           process.env.ACCESS_TOKEN_SECRET,
           {
-            expiresIn: "30s",
+            //expiresIn: "30s",
+            expiresIn: "60m", //for testing purpose
           }
         );
         const refreshToken = jwt.sign(
