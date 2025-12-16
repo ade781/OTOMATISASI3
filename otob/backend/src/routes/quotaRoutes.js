@@ -1,25 +1,23 @@
-const express = require('express');
-const {
-  getMeQuota,
+import express from 'express';
+import { getMeQuota,
   setUserQuota,
   createQuotaRequest,
   listQuotaRequests,
   updateQuotaRequest,
-  listMyQuotaRequests
-} = require('../controllers/quotaController');
-const authMiddleware = require('../middleware/authMiddleware');
-const { requireAdmin } = require('../middleware/roleMiddleware');
+  listMyQuotaRequests } from '../controllers/quotaController.js';
+import { verifyToken } from '../middleware/verifyToken.js';
+import { checkRole } from '../middleware/checkRole.js';
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(verifyToken);
 router.get('/me', getMeQuota);
 router.post('/request', createQuotaRequest);
 router.get('/my-requests', listMyQuotaRequests);
 
-router.use(requireAdmin);
+router.use(checkRole('admin'));
 router.get('/requests', listQuotaRequests);
 router.patch('/requests/:id', updateQuotaRequest);
 router.patch('/user/:userId', setUserQuota);
 
-module.exports = router;
+export default router;

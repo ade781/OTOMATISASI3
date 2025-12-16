@@ -1,14 +1,13 @@
-const express = require('express');
-const authMiddleware = require('../middleware/authMiddleware');
-const { requireAdmin } = require('../middleware/roleMiddleware');
-const { adminListReports, getReportDetail } = require('../controllers/ujiAksesReportController');
+import express from 'express';
+import { verifyToken } from '../middleware/verifyToken.js';
+import {checkRole} from '../middleware/checkRole.js';
+import { adminListReports, getReportDetail } from '../controllers/ujiAksesReportController.js';
 
 const router = express.Router();
 
-router.use(authMiddleware, requireAdmin);
-
+router.use(verifyToken, checkRole('admin'));
 router.get('/', adminListReports);
 router.get('/:id', getReportDetail);
 
-module.exports = router;
+export default router;
 

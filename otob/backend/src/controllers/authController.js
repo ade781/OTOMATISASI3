@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { User } from "../models";
+import { User } from "../models/index.js";
 
 //Nambah fungsi buat login handler
 const login = async (req, res) => {

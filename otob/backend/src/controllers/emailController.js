@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
-import { BadanPublik, EmailLog, SmtpConfig, User, Assignment } from '../models';
-import emailEventBus from '../utils/eventBus';
+import { BadanPublik, EmailLog, SmtpConfig, User, Assignment } from '../models/index.js';
+import emailEventBus from '../utils/eventBus.js';
 
 const ATTACHMENT_LIMIT_BYTES = 2 * 1024 * 1024;
 

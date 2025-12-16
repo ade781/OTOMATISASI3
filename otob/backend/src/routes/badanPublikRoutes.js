@@ -1,23 +1,23 @@
-const express = require('express');
-const {
+import express from 'express';
+import {
   listBadanPublik,
   getBadanPublik,
   createBadanPublik,
   updateBadanPublik,
   deleteBadanPublik,
   importBadanPublik
-} = require('../controllers/badanPublikController');
-const authMiddleware = require('../middleware/authMiddleware');
-const { requireAdmin } = require('../middleware/roleMiddleware');
+} from '../controllers/badanPublikController.js';
+import { verifyToken } from '../middleware/verifyToken.js';
+import { checkRole } from '../middleware/checkRole.js';
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(verifyToken);
 router.get('/', listBadanPublik);
 router.get('/:id', getBadanPublik);
-router.post('/', requireAdmin, createBadanPublik);
+router.post('/', checkRole('admin'), createBadanPublik);
 router.put('/:id', updateBadanPublik);
-router.delete('/:id', requireAdmin, deleteBadanPublik);
-router.post('/import', requireAdmin, importBadanPublik);
+router.delete('/:id', checkRole('admin'), deleteBadanPublik);
+router.post('/import', checkRole('admin'), importBadanPublik);
 
-module.exports = router;
+export default router;

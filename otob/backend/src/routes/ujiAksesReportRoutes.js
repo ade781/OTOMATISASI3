@@ -1,10 +1,10 @@
-const express = require('express');
-const authMiddleware = require('../middleware/authMiddleware');
-const multer = require('multer');
-const path = require('path');
-const crypto = require('crypto');
-const { QUESTIONS } = require('../utils/ujiAksesRubric');
-const {
+import express from 'express';
+import { verifyToken } from '../middleware/verifyToken.js';
+import multer from 'multer';
+import path from 'path';
+import crypto from 'crypto';
+import { QUESTIONS } from '../utils/ujiAksesRubric.js';
+import {
   createReport,
   updateDraftReport,
   listMyReports,
@@ -12,11 +12,11 @@ const {
   submitReport,
   uploadEvidence,
   ensureReportUploadDir
-} = require('../controllers/ujiAksesReportController');
+} from '../controllers/ujiAksesReportController.js';
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(verifyToken);
 
 router.post('/', createReport);
 router.get('/me', listMyReports);
@@ -61,4 +61,4 @@ router.use((err, req, res, next) => {
   return res.status(400).json({ message: err.message || 'Upload gagal' });
 });
 
-module.exports = router;
+export default router;

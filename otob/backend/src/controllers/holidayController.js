@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import { Holiday } from '../models';
+import { Holiday } from '../models/index.js';
 
 const listHolidays = async (req, res) => {
   try {

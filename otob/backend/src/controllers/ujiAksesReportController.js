@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { Op } from 'sequelize';
-import { UjiAksesReport, BadanPublik, User, Assignment } from '../models';
-import { computeAnswersAndTotal, validateSubmittedAnswers, QUESTIONS, normalizeMaybeJson} from '../utils/ujiAksesRubric';
+import { UjiAksesReport, BadanPublik, User, Assignment } from '../models/index.js';
+import { computeAnswersAndTotal, validateSubmittedAnswers, QUESTIONS, normalizeMaybeJson} from '../utils/ujiAksesRubric.js';
 
 const ensureUploadsDir = (dir) => {
   try {

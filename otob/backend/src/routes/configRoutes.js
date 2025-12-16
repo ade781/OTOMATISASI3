@@ -1,12 +1,12 @@
-const express = require('express');
-const { saveSmtpConfig, checkSmtpConfig, verifySmtpConfig, verifyImapConfig } = require('../controllers/smtpController');
-const authMiddleware = require('../middleware/authMiddleware');
+import express from 'express';
+import { saveSmtpConfig, checkSmtpConfig, verifySmtpConfig, verifyImapConfig } from '../controllers/smtpController.js';
+import { verifyToken } from '../middleware/verifyToken.js';
 
 const router = express.Router();
 
-router.post('/smtp', authMiddleware, saveSmtpConfig);
-router.post('/smtp/verify', authMiddleware, verifySmtpConfig);
-router.post('/imap/verify', authMiddleware, verifyImapConfig);
-router.get('/check', authMiddleware, checkSmtpConfig);
+router.post('/smtp', verifyToken, saveSmtpConfig);
+router.post('/smtp/verify', verifyToken, verifySmtpConfig);
+router.post('/imap/verify', verifyToken, verifyImapConfig);
+router.get('/check', verifyToken, checkSmtpConfig);
 
-module.exports = router;
+export default router;

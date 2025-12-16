@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import { BadanPublik, Assignment } from '../models';
+import { BadanPublik, Assignment } from '../models/index.js';
 
 const isValidEmail = (val) => {
   if (!val) return false;

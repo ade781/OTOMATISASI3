@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import { Op } from 'sequelize';
-import { User, Assignment, AssignmentHistory, SmtpConfig, EmailLog, QuotaRequest } from '../models';
+import { User, Assignment, AssignmentHistory, SmtpConfig, EmailLog, QuotaRequest } from '../models/index.js';
 
 // REGISTER //baru nambahin pasword dan bcrypt
 const createUser = async (req, res) => {
@@ -78,12 +78,7 @@ const updateRole = async (req, res) => {
   }
 };
 
-module.exports = {
-  createUser,
-  listUsers,
-  getMe,
-  updateRole,
-  deleteUser: async (req, res) => {
+const deleteUser = async (req, res) => {
     try {
       const { id } = req.params;
       const userId = Number(id);
@@ -121,8 +116,9 @@ module.exports = {
       console.error(err);
       return res.status(500).json({ message: 'Gagal menghapus user' });
     }
-  },
-  resetPassword: async (req, res) => {
+  };
+
+const resetPassword = async (req, res) => {
     try {
       const { id } = req.params;
       const { password } = req.body;
@@ -140,5 +136,15 @@ module.exports = {
       console.error(err);
       return res.status(500).json({ message: 'Gagal reset password' });
     }
-  }
-};
+  };
+
+
+export {
+  createUser,
+  listUsers,
+  getMe,
+  updateRole,
+  deleteUser,
+  resetPassword
+}
+  

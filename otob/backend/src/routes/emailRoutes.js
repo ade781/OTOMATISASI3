@@ -1,17 +1,17 @@
-const express = require('express');
-const {
+import express from 'express';
+import {
   sendBulkEmail,
   getEmailLogs,
   streamEmailLogs,
   retryEmail
-} = require('../controllers/emailController');
-const authMiddleware = require('../middleware/authMiddleware');
+} from '../controllers/emailController.js';
+import { verifyToken } from '../middleware/verifyToken.js';
 
 const router = express.Router();
 
-router.post('/send', authMiddleware, sendBulkEmail);
-router.get('/logs', authMiddleware, getEmailLogs);
-router.get('/stream', authMiddleware, streamEmailLogs);
-router.post('/retry/:id', authMiddleware, retryEmail);
+router.post('/send', verifyToken, sendBulkEmail);
+router.get('/logs', verifyToken, getEmailLogs);
+router.get('/stream', verifyToken, streamEmailLogs);
+router.post('/retry/:id', verifyToken, retryEmail);
 
-module.exports = router;
+export default router;

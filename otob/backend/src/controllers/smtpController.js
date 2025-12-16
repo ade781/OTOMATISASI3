@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import { ImapFlow } from 'imapflow';
-import { SmtpConfig } from '../models';
+import { SmtpConfig } from '../models/index.js';
 
 // Simpan atau perbarui SMTP per user
 const saveSmtpConfig = async (req, res) => {

@@ -1,5 +1,5 @@
 import { Op } from 'sequelize';
-import { Assignment, User, BadanPublik, AssignmentHistory } from '../models';
+import { Assignment, User, BadanPublik, AssignmentHistory } from '../models/index.js';
 
 // User (or admin) fetch own assignments
 const listMyAssignments = async (req, res) => {

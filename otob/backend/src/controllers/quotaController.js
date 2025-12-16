@@ -1,4 +1,4 @@
-import { User, QuotaRequest } from '../models';
+import { User, QuotaRequest } from '../models/index.js';
 import { Op } from 'sequelize';
 
 const resetIfNeeded = async (user) => {

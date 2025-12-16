@@ -1,10 +1,9 @@
-const express = require('express');
-const authMiddleware = require('../middleware/authMiddleware');
-const { listKipNews } = require('../controllers/newsController');
+import express from 'express';
+import { verifyToken } from '../middleware/verifyToken.js';
+import { listKipNews } from '../controllers/newsController.js';
 
 const router = express.Router();
 
-router.get('/kip', authMiddleware, listKipNews);
+router.get('/kip', verifyToken, listKipNews);
 
-module.exports = router;
-
+export default router;

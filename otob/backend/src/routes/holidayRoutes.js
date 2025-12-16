@@ -1,12 +1,12 @@
-const express = require('express');
-const { listHolidays, createHoliday, deleteHoliday } = require('../controllers/holidayController');
-const authMiddleware = require('../middleware/authMiddleware');
-const { requireAdmin } = require('../middleware/roleMiddleware');
+import express from 'express';
+import { listHolidays, createHoliday, deleteHoliday } from '../controllers/holidayController.js';
+import { verifyToken } from '../middleware/verifyToken.js';
+import { checkRole } from '../middleware/checkRole.js';
 
 const router = express.Router();
 
-router.get('/', authMiddleware, listHolidays);
-router.post('/', authMiddleware, requireAdmin, createHoliday);
-router.delete('/:id', authMiddleware, requireAdmin, deleteHoliday);
+router.get('/', verifyToken, listHolidays);
+router.post('/', verifyToken, checkRole('admin'), createHoliday);
+router.delete('/:id', verifyToken, checkRole('admin'), deleteHoliday);
 
-module.exports = router;
+export default router;
