@@ -168,7 +168,7 @@ const HistoryLog = () => {
       const lines = [
         `${idx + 1}. ${item.user?.username || '-'} -> ${item.badanPublik?.nama_badan_publik || '-'}`,
         `Subjek: ${item.subject || '-'}`,
-        `Status: ${item.status} • ${formatDate(item.sent_at)}`,
+        `Status: ${item.status} | ${formatDate(item.sent_at)}`,
         `MessageID: ${item.message_id || '-'}`
       ];
       lines.forEach((line) => {
@@ -330,7 +330,7 @@ const HistoryLog = () => {
                       {item.badanPublik?.nama_badan_publik || '-'}
                     </div>
                     <div className="text-xs text-slate-500 line-clamp-2">
-                      {item.status === 'failed' ? item.error_message || 'Gagal' : 'Berhasil'} · {formatDate(item.sent_at)}
+                      {item.status === 'failed' ? item.error_message || 'Gagal' : 'Berhasil'} | {formatDate(item.sent_at)}
                     </div>
                   </div>
                 </div>
@@ -437,7 +437,7 @@ const HistoryLog = () => {
                 onClick={() => setSelectedLog(null)}
                 className="text-slate-500 hover:text-slate-800 text-xl font-bold"
               >
-                ×
+                X
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

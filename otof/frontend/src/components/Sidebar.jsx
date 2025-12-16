@@ -5,6 +5,7 @@ import api from '../services/api';
 
 const baseLinks = [
   { to: '/dashboard', label: 'Dashboard', icon: 'home' },
+  { to: '/inbox', label: 'Inbox', icon: 'inbox' },
   { to: '/badan-publik', label: 'Data Badan Publik', icon: 'database' },
   { to: '/history', label: 'History Log', icon: 'clock' },
   { to: '/kalender', label: 'Kalender Libur', icon: 'calendar' },
@@ -61,9 +62,9 @@ const Sidebar = () => {
       ? [
           ...baseLinks.slice(0, 1),
           { to: '/laporan/uji-akses', label: 'Laporan Uji Akses (Saya)', icon: 'report' },
-          ...baseLinks.slice(1, 4),
+          ...baseLinks.slice(1, 5),
           ...adminLinks,
-          ...baseLinks.slice(4)
+          ...baseLinks.slice(5)
         ]
       : [...baseLinks.slice(0, 1), { to: '/laporan/uji-akses', label: 'Laporan Uji Akses', icon: 'report' }, ...baseLinks.slice(1)];
 
@@ -142,6 +143,14 @@ const Sidebar = () => {
             <path d="M7 3h7l3 3v15a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
             <path d="M14 3v4h4" />
             <path d="M9 11h8M9 15h8M9 19h6" />
+          </svg>
+        );
+      case 'inbox':
+        return (
+          <svg className={base} fill="none" strokeWidth="1.8" viewBox="0 0 24 24">
+            <path d="M4 7h16l-1.6 9.6A2 2 0 0 1 16.4 18H7.6a2 2 0 0 1-1.98-1.4Z" />
+            <path d="M4 7l2-4h12l2 4" />
+            <path d="M8 12h2a2 2 0 0 0 4 0h2" />
           </svg>
         );
       default:

@@ -19,7 +19,7 @@ const Tentang = () => {
           className="text-sm text-slate-600 font-medium"
           style={{ fontFamily: '"Didot", "Copperplate", "Fugaz One", serif' }}
         >
-          Segera hadir — sesuatu yang lebih besar.
+          Segera hadir - sesuatu yang lebih besar.
         </p>
       </div>
     </div>

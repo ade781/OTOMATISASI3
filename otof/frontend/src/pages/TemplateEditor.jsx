@@ -608,7 +608,7 @@ const TemplateEditor = () => {
                 className="text-slate-500 hover:text-slate-800 text-xl font-bold"
                 aria-label="Tutup"
               >
-                ×
+                X
               </button>
             </div>
             <div className="flex items-center gap-2">

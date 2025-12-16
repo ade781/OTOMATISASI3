@@ -1,20 +1,12 @@
 const { User, QuotaRequest } = require('../models');
 const { Op } = require('sequelize');
-
-const resetIfNeeded = async (user) => {
-  const today = new Date().toISOString().slice(0, 10);
-  if (user.last_reset_date !== today) {
-    user.used_today = 0;
-    user.last_reset_date = today;
-    await user.save();
-  }
-};
+const { resetDailyUsageIfNeeded } = require('../utils/quota');
 
 const getMeQuota = async (req, res) => {
   try {
     const user = await User.findByPk(req.user.id);
     if (!user) return res.status(404).json({ message: 'User tidak ditemukan' });
-    await resetIfNeeded(user);
+    await resetDailyUsageIfNeeded(user);
     return res.json({
       daily_quota: user.daily_quota,
       used_today: user.used_today,
@@ -122,7 +114,7 @@ const updateQuotaRequest = async (req, res) => {
     if (status === 'approved') {
       const user = await User.findByPk(qr.user_id);
       if (user) {
-        await resetIfNeeded(user);
+        await resetDailyUsageIfNeeded(user);
         user.daily_quota = user.daily_quota + qr.requested_quota; // tambahkan, bukan ganti
         user.used_today = Math.max(0, user.used_today - qr.requested_quota); // beri ruang tambahan hari ini
         await user.save();

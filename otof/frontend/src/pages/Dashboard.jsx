@@ -442,7 +442,7 @@ const Dashboard = () => {
 
   const attachmentInfo = useMemo(() => {
     if (!attachment) return null;
-    return `${attachment.filename || 'Lampiran'}${attachment.size ? ` (${formatBytes(attachment.size)})` : ''}${attachment.contentType ? ` • ${attachment.contentType}` : ''
+    return `${attachment.filename || 'Lampiran'}${attachment.size ? ` (${formatBytes(attachment.size)})` : ''}${attachment.contentType ? ` | ${attachment.contentType}` : ''
       }`;
   }, [attachment]);
 
@@ -791,7 +791,7 @@ const Dashboard = () => {
                 onClick={() => setAssignmentsModal(false)}
                 className="text-slate-400 hover:text-slate-700 text-xl font-bold"
               >
-                ×
+                X
               </button>
             </div>
             <input

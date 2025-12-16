@@ -9,6 +9,8 @@ const AssignmentHistoryModel = require('./assignmentHistory');
 const HolidayModel = require('./holiday');
 const UjiAksesReportModel = require('./ujiAksesReport');
 const MonitoringStateModel = require('./monitoringState');
+const MessageModel = require('./message');
+const UserSessionModel = require('./userSession');
 
 const User = UserModel(sequelize);
 const BadanPublik = BadanPublikModel(sequelize);
@@ -20,6 +22,8 @@ const AssignmentHistory = AssignmentHistoryModel(sequelize);
 const Holiday = HolidayModel(sequelize);
 const UjiAksesReport = UjiAksesReportModel(sequelize);
 const MonitoringState = MonitoringStateModel(sequelize);
+const Message = MessageModel(sequelize);
+const UserSession = UserSessionModel(sequelize);
 
 User.hasOne(SmtpConfig, {
   foreignKey: 'user_id',
@@ -64,6 +68,14 @@ User.hasMany(MonitoringState, { foreignKey: 'user_id', as: 'monitoringStates' })
 MonitoringState.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 MonitoringState.belongsTo(BadanPublik, { foreignKey: 'badan_publik_id', as: 'badanPublik' });
 
+User.hasMany(Message, { foreignKey: 'sender_id', as: 'sentMessages' });
+User.hasMany(Message, { foreignKey: 'recipient_id', as: 'receivedMessages' });
+Message.belongsTo(User, { foreignKey: 'sender_id', as: 'sender' });
+Message.belongsTo(User, { foreignKey: 'recipient_id', as: 'recipient' });
+
+User.hasMany(UserSession, { foreignKey: 'user_id', as: 'sessions' });
+UserSession.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
 module.exports = {
   sequelize,
   User,
@@ -75,5 +87,7 @@ module.exports = {
   AssignmentHistory,
   Holiday,
   UjiAksesReport,
-  MonitoringState
+  MonitoringState,
+  Message,
+  UserSession
 };

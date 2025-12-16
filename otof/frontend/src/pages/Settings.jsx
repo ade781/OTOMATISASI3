@@ -4,7 +4,7 @@ import SmtpModal from '../components/SmtpModal';
 
 const steps = [
   'Aktifkan 2-Step Verification di Google Account.',
-  'Buat App Password: Security > App Passwords > pilih “Mail” dan device “Other”, simpan 16 digit.',
+  'Buat App Password: Security > App Passwords > pilih "Mail" dan device "Other", simpan 16 digit.',
   'Aktifkan IMAP (Settings Gmail > See all settings > Forwarding and POP/IMAP > Enable IMAP). POP3 opsional.',
   'Masukkan Email + App Password ke form SMTP di sini.',
   'Simpan. Indikator di navbar berubah hijau jika berhasil.'

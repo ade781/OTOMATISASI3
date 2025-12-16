@@ -1,6 +1,6 @@
-const nodemailer = require('nodemailer');
 const { ImapFlow } = require('imapflow');
 const { SmtpConfig } = require('../models');
+const { createVerifiedGmailTransporter } = require('../utils/smtp');
 
 // Simpan atau perbarui SMTP per user
 const saveSmtpConfig = async (req, res) => {
@@ -55,16 +55,8 @@ const verifySmtpConfig = async (req, res) => {
       userPass = stored.app_password;
     }
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: userEmail,
-        pass: userPass
-      }
-    });
-
     try {
-      await transporter.verify();
+      await createVerifiedGmailTransporter(userEmail, userPass);
       return res.json({ message: 'SMTP valid. Siap digunakan untuk mengirim email.' });
     } catch (err) {
       console.error('SMTP verify failed', err);

@@ -133,7 +133,7 @@ const HolidayCalendar = () => {
           <span className="h-2 w-2 rounded-full bg-amber-500" />
           <span className="text-slate-700">Libur terdekat: </span>
           <span className="font-semibold text-slate-900">
-            {nextUpcoming ? `${nextUpcoming.name} (${nextUpcoming.date})` : '—'}
+            {nextUpcoming ? `${nextUpcoming.name} (${nextUpcoming.date})` : '-'}
           </span>
         </div>
       </div>
@@ -145,22 +145,22 @@ const HolidayCalendar = () => {
               <h2 className="text-lg font-bold text-slate-900">Pilih tanggal libur</h2>
               <p className="text-sm text-slate-500">Klik tanggal untuk menambah/menghapus libur.</p>
             </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentMonth((prev) => addMonths(prev, -1))}
-              className="px-3 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
-            >
-              ‹
-            </button>
-            <div className="text-sm font-semibold text-slate-800 w-32 text-center">{monthLabel}</div>
-            <button
-              onClick={() => setCurrentMonth((prev) => addMonths(prev, 1))}
-              className="px-3 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
-            >
-              ›
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentMonth((prev) => addMonths(prev, -1))}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
+              >
+                {'<'}
+              </button>
+              <div className="text-sm font-semibold text-slate-800 w-32 text-center">{monthLabel}</div>
+              <button
+                onClick={() => setCurrentMonth((prev) => addMonths(prev, 1))}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
+              >
+                {'>'}
+              </button>
+            </div>
           </div>
-        </div>
           <div className="grid grid-cols-7 text-[11px] text-slate-500 gap-1 transition-all duration-200 ease-out" key={monthLabel}>
             {['M', 'S', 'S', 'R', 'K', 'J', 'S'].map((d) => (
               <div key={d} className="text-center py-1 font-semibold">
@@ -175,15 +175,14 @@ const HolidayCalendar = () => {
                   onClick={() => ![0, 6].includes(day.dayOfWeek) && day.iso >= todayIso && toggleHoliday(day.iso)}
                   disabled={!isAdmin || [0, 6].includes(day.dayOfWeek) || day.iso < todayIso}
                   title={isHoliday(day.iso) ? getHolidayName(day.iso) : undefined}
-                  className={`relative py-2 text-sm rounded-lg border transition transform duration-150 ${
-                    [0, 6].includes(day.dayOfWeek)
-                      ? 'bg-rose-50 text-rose-500 border-rose-200 cursor-not-allowed'
-                      : day.iso < todayIso
+                  className={`relative py-2 text-sm rounded-lg border transition transform duration-150 ${[0, 6].includes(day.dayOfWeek)
+                    ? 'bg-rose-50 text-rose-500 border-rose-200 cursor-not-allowed'
+                    : day.iso < todayIso
                       ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'
                       : isHoliday(day.iso)
-                      ? 'bg-primary text-white border-primary hover:-translate-y-0.5 hover:shadow'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:-translate-y-0.5 hover:shadow'
-                  } ${!isAdmin ? 'cursor-default' : ''}`}
+                        ? 'bg-primary text-white border-primary hover:-translate-y-0.5 hover:shadow'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:-translate-y-0.5 hover:shadow'
+                    } ${!isAdmin ? 'cursor-default' : ''}`}
                 >
                   <span>{day.label}</span>
                   {isHoliday(day.iso) && (
@@ -206,7 +205,7 @@ const HolidayCalendar = () => {
               {sorted.length} hari
             </span>
           </div>
-          <div className="max-h-[420px] overflow-auto border border-slate-100 rounded-xl">
+          <div className="h-[260px] overflow-auto border border-slate-100 rounded-xl">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
@@ -245,33 +244,6 @@ const HolidayCalendar = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-soft p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Libur mendatang</h2>
-              <p className="text-sm text-slate-500">Urut berdasarkan tanggal terdekat.</p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            {upcoming.length === 0 ? (
-              <div className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-3">
-                Tidak ada libur terjadwal ke depan.
-              </div>
-            ) : (
-              upcoming.map((h) => (
-                <div
-                  key={h.id}
-                  className="flex items-center justify-between px-3 py-2 rounded-xl border border-slate-200 bg-slate-50"
-                >
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">{h.name}</div>
-                    <div className="text-xs text-slate-600">{h.date}</div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );

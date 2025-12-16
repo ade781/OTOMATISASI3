@@ -1,10 +1,7 @@
-const { BadanPublik, Assignment } = require('../models');
+const { BadanPublik } = require('../models');
 const { Op } = require('sequelize');
-
-const isValidEmail = (val) => {
-  if (!val) return false;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
-};
+const { isValidEmail } = require('../utils/validators');
+const { getAssignedBadanPublikIds, ensureUserCanAccessBadanPublik } = require('../utils/access');
 
 const listBadanPublik = async (req, res) => {
   try {
@@ -13,11 +10,7 @@ const listBadanPublik = async (req, res) => {
       return res.json(dataAdmin);
     }
 
-    const assignments = await Assignment.findAll({
-      where: { user_id: req.user.id },
-      attributes: ['badan_publik_id']
-    });
-    const allowedIds = assignments.map((a) => a.badan_publik_id);
+    const allowedIds = await getAssignedBadanPublikIds(req.user.id);
 
     if (allowedIds.length === 0) {
       return res.json([]);
@@ -97,10 +90,8 @@ const updateBadanPublik = async (req, res) => {
     // Non-admin hanya boleh mengubah data yang ditugaskan kepadanya, dan hanya kolom tertentu
     const isAdmin = req.user.role === 'admin';
     if (!isAdmin) {
-      const assigned = await Assignment.findOne({
-        where: { user_id: req.user.id, badan_publik_id: id }
-      });
-      if (!assigned) {
+      const canAccess = await ensureUserCanAccessBadanPublik(req.user, id);
+      if (!canAccess) {
         return res.status(403).json({ message: 'Akses ditolak: data ini tidak ditugaskan ke Anda.' });
       }
     }

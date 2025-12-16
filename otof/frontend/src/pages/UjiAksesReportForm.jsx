@@ -249,7 +249,7 @@ const UjiAksesReportForm = ({ reportId }) => {
               <option value="">{loadingBadan ? 'Memuat...' : 'Pilih badan publik'}</option>
               {badanPublik.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.nama_badan_publik} — {b.kategori}
+                  {b.nama_badan_publik} - {b.kategori}
                 </option>
               ))}
             </select>

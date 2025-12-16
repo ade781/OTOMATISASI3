@@ -17,7 +17,7 @@ const Toast = ({ toast, onClose }) => {
             className="text-sm text-slate-500 hover:text-slate-800"
             aria-label="Tutup"
           >
-            ×
+            X
           </button>
         </div>
       </div>

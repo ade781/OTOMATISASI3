@@ -444,7 +444,7 @@ const Penugasan = () => {
                       <div>
                         <div className="text-sm font-semibold text-slate-800">{r.user?.username}</div>
                         <p className="text-[11px] text-slate-500">
-                          Menambah {r.requested_quota}/hari • {new Date(r.createdAt).toLocaleDateString('id-ID')}
+                          Menambah {r.requested_quota}/hari - {new Date(r.createdAt).toLocaleDateString('id-ID')}
                         </p>
                       </div>
                       <span className="text-[11px] px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
@@ -493,7 +493,7 @@ const Penugasan = () => {
               <div>
                 <div className="text-sm font-semibold text-slate-800">Panel penugasan</div>
                 <p className="text-xs text-slate-500">
-                  1) pilih user · 2) checklist badan publik · 3) atur kuota (default 20/hari) · 4) simpan
+                  1) pilih user > 2) checklist badan publik > 3) atur kuota (default 20/hari) > 4) simpan
                 </p>
               </div>
               <div className="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-sm border border-slate-200">
@@ -646,7 +646,7 @@ const Penugasan = () => {
             </div>
             <div className="flex items-center justify-between text-sm text-slate-600 mt-2">
               <div>
-                Halaman {currentPage} / {totalPages} • {filteredBadan.length} data
+                Halaman {currentPage} / {totalPages} | {filteredBadan.length} data
               </div>
               <div className="flex gap-2">
                 <button

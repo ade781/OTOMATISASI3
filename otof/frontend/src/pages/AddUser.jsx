@@ -359,7 +359,7 @@ const AddUser = () => {
                 className="text-slate-400 hover:text-slate-700 text-xl font-bold"
                 aria-label="Tutup"
               >
-                ×
+                X
               </button>
             </div>
             <div className="flex justify-end gap-2">
@@ -395,7 +395,7 @@ const AddUser = () => {
                 onClick={() => setResetUser(null)}
                 className="text-slate-400 hover:text-slate-700 text-xl font-bold"
               >
-                ×
+                X
               </button>
             </div>
             <div>
@@ -446,7 +446,7 @@ const AddUser = () => {
                 className="text-slate-400 hover:text-slate-700 text-xl font-bold"
                 aria-label="Tutup"
               >
-                ×
+                X
               </button>
             </div>
             <div className="flex justify-end gap-2">

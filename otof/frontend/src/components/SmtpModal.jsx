@@ -185,7 +185,7 @@ const SmtpModal = ({ open, onClose }) => {
             className="text-slate-400 hover:text-slate-700 transition text-xl font-bold"
             aria-label="Tutup"
           >
-            ×
+            X
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">

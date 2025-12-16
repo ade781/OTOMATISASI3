@@ -16,6 +16,7 @@ import UjiAksesReportNew from './pages/UjiAksesReportNew';
 import UjiAksesReportDetail from './pages/UjiAksesReportDetail';
 import AdminUjiAksesReports from './pages/AdminUjiAksesReports';
 import AdminUjiAksesReportDetail from './pages/AdminUjiAksesReportDetail';
+import Inbox from './pages/Inbox';
 
 const App = () => {
   return (
@@ -34,6 +35,7 @@ const App = () => {
             <Route path="/settings" element={<Settings />} />
             <Route path="/tentang" element={<Tentang />} />
             <Route path="/kalender" element={<HolidayCalendar />} />
+            <Route path="/inbox" element={<Inbox />} />
 
             <Route path="/laporan/uji-akses" element={<UjiAksesReports />} />
             <Route path="/laporan/uji-akses/new" element={<UjiAksesReportNew />} />

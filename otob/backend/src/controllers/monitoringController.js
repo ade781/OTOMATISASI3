@@ -1,4 +1,5 @@
-const { MonitoringState, Assignment, BadanPublik } = require('../models');
+const { MonitoringState, BadanPublik } = require('../models');
+const { ensureUserCanAccessBadanPublik } = require('../utils/access');
 
 // Ambil semua monitoring milik user
 const listMonitoring = async (req, res) => {
@@ -27,10 +28,8 @@ const upsertMonitoring = async (req, res) => {
     }
 
     if (!isAdmin) {
-      const assigned = await Assignment.findOne({
-        where: { user_id: req.user.id, badan_publik_id: badanPublikId }
-      });
-      if (!assigned) {
+      const canAccess = await ensureUserCanAccessBadanPublik(req.user, badanPublikId);
+      if (!canAccess) {
         return res.status(403).json({ message: 'Akses ditolak: data tidak ditugaskan ke Anda.' });
       }
     }

@@ -1,6 +1,9 @@
-const nodemailer = require('nodemailer');
-const { BadanPublik, EmailLog, SmtpConfig, User, Assignment } = require('../models');
+const { BadanPublik, EmailLog, SmtpConfig, User } = require('../models');
 const emailEventBus = require('../utils/eventBus');
+const { createVerifiedGmailTransporter } = require('../utils/smtp');
+const { resetDailyUsageIfNeeded } = require('../utils/quota');
+const { getAssignedBadanPublikIds } = require('../utils/access');
+const { isValidEmail } = require('../utils/validators');
 
 const ATTACHMENT_LIMIT_BYTES = 2 * 1024 * 1024;
 
@@ -17,11 +20,6 @@ const getAttachmentSize = (att) => {
     return Math.floor((att.content.length * 3) / 4);
   }
   return 0;
-};
-
-const isValidEmail = (val) => {
-  if (!val) return false;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
 };
 
 const emitLog = async (logId) => {
@@ -72,12 +70,7 @@ const sendBulkEmail = async (req, res) => {
     // Quota check
     const user = await User.findByPk(userId);
     if (!user) return res.status(400).json({ message: 'User tidak ditemukan' });
-    const today = new Date().toISOString().slice(0, 10);
-    if (user.last_reset_date !== today) {
-      user.used_today = 0;
-      user.last_reset_date = today;
-      await user.save();
-    }
+    await resetDailyUsageIfNeeded(user);
     const remaining = Math.max(user.daily_quota - user.used_today, 0);
     if (badan_publik_ids.length > remaining) {
       return res
@@ -85,15 +78,12 @@ const sendBulkEmail = async (req, res) => {
         .json({ message: `Kuota harian tersisa ${remaining}. Kurangi penerima atau ajukan kuota.` });
     }
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: smtpConfig.email_address,
-        pass: smtpConfig.app_password
-      }
-    });
+    let transporter;
     try {
-      await transporter.verify();
+      transporter = await createVerifiedGmailTransporter(
+        smtpConfig.email_address,
+        smtpConfig.app_password
+      );
     } catch (err) {
       return res.status(400).json({
         message:
@@ -186,11 +176,7 @@ const sendBulkEmail = async (req, res) => {
 
     let allowedIds = null;
     if (req.user.role !== 'admin') {
-      const assignments = await Assignment.findAll({
-        where: { user_id: userId },
-        attributes: ['badan_publik_id']
-      });
-      allowedIds = new Set(assignments.map((a) => a.badan_publik_id));
+      allowedIds = new Set(await getAssignedBadanPublikIds(userId));
     }
 
     for (const targetId of badan_publik_ids) {
@@ -360,16 +346,12 @@ const retryEmail = async (req, res) => {
     const smtpConfig = await SmtpConfig.findOne({ where: { user_id: log.user_id } });
     if (!smtpConfig) return res.status(400).json({ message: 'User belum memiliki SMTP' });
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: smtpConfig.email_address,
-        pass: smtpConfig.app_password
-      }
-    });
-
+    let transporter;
     try {
-      await transporter.verify();
+      transporter = await createVerifiedGmailTransporter(
+        smtpConfig.email_address,
+        smtpConfig.app_password
+      );
     } catch (err) {
       return res.status(400).json({ message: 'SMTP tidak valid saat retry', detail: err.message });
     }

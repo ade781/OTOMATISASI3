@@ -36,8 +36,8 @@ export const UJI_AKSES_QUESTIONS = [
     key: 'q4',
     text: 'Apakah informasi diberikan tidak lebih dari 10 hari kerja + 7 hari kerja?',
     options: [
-      { key: '1_10_hari_kerja', label: '1–10 hari kerja', score: 20 },
-      { key: '11_17_hari_kerja', label: '11–17 hari kerja', score: 10 },
+      { key: '1_10_hari_kerja', label: '1-10 hari kerja', score: 20 },
+      { key: '11_17_hari_kerja', label: '11-17 hari kerja', score: 10 },
       { key: '18_hari_lebih_atau_tidak_diberikan', label: '18 hari kerja/lebih atau tidak diberikan', score: 0 }
     ]
   },
@@ -51,19 +51,19 @@ export const UJI_AKSES_QUESTIONS = [
       {
         key: 'tidak_diberikan_tidak_dikuasai_ada_bukti_dan_mengarahkan',
         label:
-          'Informasi tidak diberikan karena alasan tidak dikuasai: Ada bukti “tidak dikuasai” DAN mengarahkan ke BP yang menguasai',
+          'Informasi tidak diberikan karena alasan tidak dikuasai: Ada bukti "tidak dikuasai" DAN mengarahkan ke BP yang menguasai',
         score: 30
       },
       {
         key: 'tidak_diberikan_tidak_dikuasai_tidak_ada_bukti_tapi_mengarahkan',
         label:
-          'Informasi tidak diberikan karena alasan tidak dikuasai: Tidak ada bukti “tidak dikuasai” TAPI mengarahkan',
+          'Informasi tidak diberikan karena alasan tidak dikuasai: Tidak ada bukti "tidak dikuasai" TAPI mengarahkan',
         score: 15
       },
       {
         key: 'tidak_diberikan_tidak_dikuasai_ada_bukti_tapi_tidak_mengarahkan',
         label:
-          'Informasi tidak diberikan karena alasan tidak dikuasai: Ada bukti “tidak dikuasai” TAPI tidak mengarahkan',
+          'Informasi tidak diberikan karena alasan tidak dikuasai: Ada bukti "tidak dikuasai" TAPI tidak mengarahkan',
         score: 15
       },
       {

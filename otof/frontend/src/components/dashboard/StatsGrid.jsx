@@ -15,7 +15,7 @@ const StatsGrid = ({ cards, loading }) => {
         >
           <div className="absolute inset-x-0 -top-6 h-16 bg-gradient-to-r from-transparent via-primary/5 to-transparent pointer-events-none" />
           <div className="absolute top-3 right-3 text-[11px] px-3 py-1 rounded-full bg-sand-50 text-slate-600 border border-slate-200">
-            {card.source || 'API'} • {card.updatedAt || 'real-time'}
+            {card.source || 'API'} | {card.updatedAt || 'real-time'}
           </div>
           <div className="flex items-center gap-2">
             <span

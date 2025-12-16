@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import { computeDueInfo } from '../utils/workdays';
 import { fetchMonitoringMap, saveMonitoringEntry } from '../utils/monitoring';
 import { fetchHolidays } from '../services/holidays';
+import { truncateText } from '../utils/text';
 
 const emptyForm = {
   nama_badan_publik: '',
@@ -282,11 +283,6 @@ const BadanPublik = () => {
     }
   };
 
-  const truncate = (text, limit) => {
-    if (!text) return '';
-    return text.length > limit ? `${text.slice(0, limit)}…` : text;
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -384,12 +380,12 @@ const BadanPublik = () => {
                     className={`border-t border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}
                   >
                     <td className="px-3 py-2 text-slate-700">{idx + 1}</td>
-                    <td className="px-3 py-2 font-semibold text-slate-900">{truncate(item.nama_badan_publik, 70)}</td>
-                    <td className="px-3 py-2 text-slate-700">{truncate(item.kategori, 16)}</td>
+                    <td className="px-3 py-2 font-semibold text-slate-900">{truncateText(item.nama_badan_publik, 70)}</td>
+                    <td className="px-3 py-2 text-slate-700">{truncateText(item.kategori, 16)}</td>
                     <td className="px-3 py-2 text-slate-700">
                       {item.email ? (
                         <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">
-                          {truncate(item.email, 36)}
+                          {truncateText(item.email, 36)}
                         </span>
                       ) : (
                         <span className="px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs">
@@ -397,9 +393,9 @@ const BadanPublik = () => {
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-slate-700">{truncate(item.website || '-', 36)}</td>
+                    <td className="px-3 py-2 text-slate-700">{truncateText(item.website || '-', 36)}</td>
                     <td className="px-3 py-2 text-slate-700 whitespace-pre-wrap w-[22%] min-w-[320px] align-top">
-                      {truncate(item.pertanyaan || '-', 60)}
+                      {truncateText(item.pertanyaan || '-', 60)}
                     </td>
                     <td className="px-3 py-2">
                       <span
@@ -606,7 +602,7 @@ const BadanPublik = () => {
                 onClick={() => setImportOpen(false)}
                 className="text-slate-500 hover:text-slate-800 text-xl font-bold"
               >
-                ×
+                X
               </button>
             </div>
 

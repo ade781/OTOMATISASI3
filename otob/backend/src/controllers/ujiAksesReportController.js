@@ -1,13 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 const { Op } = require('sequelize');
-const { UjiAksesReport, BadanPublik, User, Assignment } = require('../models');
+const { UjiAksesReport, BadanPublik, User } = require('../models');
 const {
   computeAnswersAndTotal,
   validateSubmittedAnswers,
   QUESTIONS,
   normalizeMaybeJson
 } = require('../utils/ujiAksesRubric');
+const { ensureUserCanAccessBadanPublik } = require('../utils/access');
 
 const ensureUploadsDir = (dir) => {
   try {
@@ -15,15 +16,6 @@ const ensureUploadsDir = (dir) => {
   } catch (err) {
     // ignore
   }
-};
-
-const userCanAccessBadanPublik = async (user, badanPublikId) => {
-  if (user?.role === 'admin') return true;
-  const found = await Assignment.findOne({
-    where: { user_id: user.id, badan_publik_id: badanPublikId },
-    attributes: ['id']
-  });
-  return Boolean(found);
 };
 
 const getReportOr403 = async (req, res, reportId) => {
@@ -60,7 +52,7 @@ const createReport = async (req, res) => {
       return res.status(404).json({ message: 'Badan publik tidak ditemukan' });
     }
 
-    const can = await userCanAccessBadanPublik(req.user, badanPublikId);
+    const can = await ensureUserCanAccessBadanPublik(req.user, badanPublikId);
     if (!can) {
       return res.status(403).json({ message: 'Badan publik tidak termasuk penugasan Anda' });
     }
