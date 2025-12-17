@@ -9,7 +9,7 @@ const isValidEmail = (val) => {
 const listBadanPublik = async (req, res) => {
   try {
     if (req.user.role === 'admin') {
-      const dataAdmin = await BadanPublik.findAll({ order: [['created_at', 'DESC']] });
+      const dataAdmin = await BadanPublik.findAll({ order: [['createdAt', 'DESC']] });
       return res.json(dataAdmin);
     }
 
@@ -25,7 +25,7 @@ const listBadanPublik = async (req, res) => {
 
     const data = await BadanPublik.findAll({
       where: { id: allowedIds },
-      order: [['created_at', 'DESC']]
+      order: [['createdAt', 'DESC']]
     });
 
     return res.json(data);

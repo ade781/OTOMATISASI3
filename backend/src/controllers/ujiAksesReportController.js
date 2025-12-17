@@ -114,7 +114,7 @@ const listMyReports = async (req, res) => {
     const data = await UjiAksesReport.findAll({
       where: { user_id: req.user.id },
       include: [{ model: BadanPublik, as: 'badanPublik' }],
-      order: [['created_at', 'DESC']]
+      order: [['createdAt', 'DESC']]
     });
     return res.json(data.map(toPlainReport));
   } catch (err) {
@@ -168,7 +168,7 @@ const adminListReports = async (req, res) => {
     const q = String(req.query.q || '').trim();
     const badanPublikId = req.query.badanPublikId ? Number(req.query.badanPublikId) : null;
     const status = req.query.status ? String(req.query.status) : '';
-    const sortBy = ['total_skor', 'created_at'].includes(String(req.query.sortBy)) ? String(req.query.sortBy) : 'created_at';
+    const sortBy = ['total_skor', 'createdAt'].includes(String(req.query.sortBy)) ? String(req.query.sortBy) : 'createdAt';
     const sortDir = String(req.query.sortDir).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
     const where = {};

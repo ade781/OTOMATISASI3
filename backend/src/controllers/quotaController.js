@@ -77,7 +77,7 @@ const listQuotaRequests = async (_req, res) => {
     const reqs = await QuotaRequest.findAll({
       where: { status: { [Op.not]: null } },
       include: [{ model: User, as: 'user', attributes: ['username', 'role'] }],
-      order: [['created_at', 'DESC']]
+      order: [['createdAt', 'DESC']]
     });
     return res.json(reqs);
   } catch (err) {
@@ -91,7 +91,7 @@ const listMyQuotaRequests = async (req, res) => {
   try {
     const reqs = await QuotaRequest.findAll({
       where: { user_id: req.user.id },
-      order: [['created_at', 'DESC']]
+      order: [['createdAt', 'DESC']]
     });
     return res.json(reqs);
   } catch (err) {
