@@ -1,44 +1,62 @@
-import { User } from "../models/index.js";
 import jwt from "jsonwebtoken";
+import User from "../models/user.js";
+import { generateRefreshToken, hashRefreshToken } from "../utils/tokens.js";
+import { setRefreshCookie, clearRefreshCookie } from "../utils/cookies.js";
 
 export const refreshToken = async (req, res) => {
   try {
-    console.log("sudah kadaluarsa");
     const refreshToken = req.cookies.refreshToken;
-    console.log({ refreshToken });
     if (!refreshToken) return res.sendStatus(401);
-    console.log("sudah lewat 401 di authcontroller");
+
+    const refreshHash = hashRefreshToken(refreshToken);
+
     const user = await User.findOne({
-      where: {
-        refresh_token: refreshToken,
-      },
+      where: { refresh_token_hash: refreshHash },
     });
-    if (!user || user.refresh_token !== refreshToken) {
-      console.log("Refresh token tidak cocok dengan database"); 
-      res.clearCookie("refreshToken");
-      return res
-        .status(403)
-        .json({ message: "Akun digunakan di perangkat lain" }); 
-    } else
-      jwt.verify(
-        refreshToken,
-        process.env.REFRESH_TOKEN_SECRET,
-        (err, decoded) => {
-          if (err) return res.sendStatus(403);
-          console.log("sudah lewat 403 ke dua di controller");
-          const userPlain = user.toJSON(); // Konversi ke object
-          const { password: _, refresh_token: __, ...safeUserData } = userPlain;
-          const accessToken = jwt.sign(
-            safeUserData,
-            process.env.ACCESS_TOKEN_SECRET,
-            {
-              expiresIn: "30s",
-            }
-          );
-          res.json({ accessToken });
-        }
-      );
+
+    // Token tidak cocok / sudah di-rotate / login di device lain
+    if (!user) {
+      clearRefreshCookie(res);
+      return res.sendStatus(403);
+    }
+
+    // Cek expiry di DB (authoritative)
+    if (!user.refresh_expires_at || new Date(user.refresh_expires_at) <= new Date()) {
+      await user.update({
+        refresh_token_hash: null,
+        refresh_expires_at: null,
+        refresh_rotated_at: new Date(),
+      });
+      clearRefreshCookie(res);
+      return res.sendStatus(403);
+    }
+
+    // Buat access token baru (pendek)
+    const accessToken = jwt.sign(
+      { id: user.id, role: user.role, username: user.username },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    // ROTATION: buat refresh token baru + update hash di DB
+    const newRefreshToken = generateRefreshToken();
+    const newRefreshHash = hashRefreshToken(newRefreshToken);
+
+    // Sliding expiration (opsional): perpanjang 7 hari dari sekarang
+    const newRefreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await user.update({
+      refresh_token_hash: newRefreshHash,
+      refresh_expires_at: newRefreshExpiresAt,
+      refresh_rotated_at: new Date(),
+    });
+
+    // Set cookie refresh yang baru
+    setRefreshCookie(res, newRefreshToken);
+
+    return res.json({ accessToken });
   } catch (error) {
-    console.log(error);
+    console.error(error);
+    return res.sendStatus(500);
   }
 };

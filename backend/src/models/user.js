@@ -1,43 +1,58 @@
 import { Sequelize } from "sequelize";
 import db from "../config/database.js";
 
-const User = db.define("User", {
-  id: {
-    type: Sequelize.INTEGER,
-    autoIncrement: true,
-    primaryKey: true,
+const User = db.define(
+  "User",
+  {
+    id: {
+      type: Sequelize.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    username: {
+      type: Sequelize.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    password: {
+      type: Sequelize.STRING,
+      allowNull: false,
+    },
+    role: {
+      type: Sequelize.ENUM("admin", "user"),
+      allowNull: false,
+      defaultValue: "user",
+    },
+    refresh_token_hash: {
+      type: Sequelize.STRING(128),
+      allowNull: true,
+    },
+    refresh_expires_at: {
+      type: Sequelize.DATE,
+      allowNull: true,
+    },
+    refresh_rotated_at: {
+      type: Sequelize.DATE,
+      allowNull: true,
+    },
+    daily_quota: {
+      type: Sequelize.INTEGER,
+      allowNull: false,
+      defaultValue: 20,
+    },
+    used_today: {
+      type: Sequelize.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    last_reset_date: {
+      type: Sequelize.DATEONLY,
+      allowNull: true,
+    },
   },
-  username: {
-    type: Sequelize.STRING,
-    allowNull: false,
-    unique: true,
-  },
-  password: {
-    type: Sequelize.STRING,
-    allowNull: false,
-  },
-  role: {
-    type: Sequelize.ENUM("admin", "user"),
-    allowNull: false,
-    defaultValue: "user",
-  },
-  daily_quota: {
-    type: Sequelize.INTEGER,
-    allowNull: false,
-    defaultValue: 20,
-  },
-  used_today: {
-    type: Sequelize.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
-  },
-  last_reset_date: {
-    type: Sequelize.DATEONLY,
-    allowNull: true,
-  },
-  refresh_token: { type: Sequelize.TEXT, allowNull: true },
-}, {
-  tableName: "Users",
-});
+  {
+    tableName: "Users",
+  }
+);
 
 export default User;

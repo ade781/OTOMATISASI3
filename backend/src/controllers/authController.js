@@ -1,120 +1,106 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { User } from "../models/index.js";
+import { generateRefreshToken, hashRefreshToken } from "../utils/tokens.js";
+import { setRefreshCookie, clearRefreshCookie } from "../utils/cookies.js";
 
 //Nambah fungsi buat login handler
 const login = async (req, res) => {
   try {
     const { username, password } = req.body;
-    const user = await User.findOne({
-      where: {
-        username: username,
-      },
-    });
 
-    if (user) {
-      //Data User itu nanti bakalan dipake buat ngesign token kan
-      // data user dari sequelize itu harus diubah dulu ke bentuk object
-      //Safeuserdata dipake biar lebih dinamis, jadi dia masukin semua data user kecuali data-data sensitifnya  karena bisa didecode kayak password caranya gini :
-      const userPlain = user.toJSON(); // Konversi ke object
-      const { password: _, refresh_token: __, ...safeUserData } = userPlain;
-
-      const decryptPassword = await bcrypt.compare(password, user.password);
-      if (decryptPassword) {
-        const accessToken = jwt.sign(
-          safeUserData,
-          process.env.ACCESS_TOKEN_SECRET,
-          {
-            //expiresIn: "30s",
-            expiresIn: "60m", //for testing purpose
-          }
-        );
-        const refreshToken = jwt.sign(
-          safeUserData,
-          process.env.REFRESH_TOKEN_SECRET,
-          {
-            expiresIn: "1d",
-          }
-        );
-        await User.update({ refresh_token: null }, { where: { id: user.id } });
-        await User.update(
-          { refresh_token: refreshToken },
-          {
-            where: {
-              id: user.id,
-            },
-          }
-        );
-        res.cookie("refreshToken", refreshToken, {
-          httpOnly: true, //ngatur cross-site scripting, untuk penggunaan asli aktifkan karena bisa nyegah serangan fetch data dari website "document.cookies"
-          sameSite: "lax", //ini ngatur domain yg request misal kalo strict cuman bisa akseske link dari dan menuju domain yg sama, lax itu bisa dari domain lain tapi cuman bisa get
-          maxAge: 24 * 60 * 60 * 1000,
-          secure: false, //ini ngirim cookies cuman bisa dari https, kenapa? nyegah skema MITM di jaringan publik, tapi pas development di false in aja
-        });
-        res.status(200).json({
-          status: "Succes",
-          message: "Login Berhasil",
-          safeUserData,
-          accessToken,
-        });
-      } else {
-        res.status(400).json({
-          status: "Failed",
-          message: "Paassword atau email salah",
-        });
-      }
-    } else {
-      res.status(400).json({
-        status: "Failed",
-        message: "Paassword atau email salah",
-      });
+    const user = await User.findOne({ where: { username } });
+    if (!user) {
+      return res
+        .status(400)
+        .json({ status: "Failed", message: "Username atau password salah" });
     }
-  } catch (error) {
-    res.status(error.statusCode || 500).json({
-      status: "error",
-      message: error.message,
+
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) {
+      return res
+        .status(400)
+        .json({ status: "Failed", message: "Username atau password salah" });
+    }
+
+    // Safe user payload for access token (hindari field sensitif)
+    const userPlain = user.toJSON();
+    const {
+      password: _p,
+      refresh_token: _rt,
+      refresh_token_hash: _rh,
+      refresh_expires_at: _re,
+      ...safeUserData
+    } = userPlain;
+
+    // 1) Access token pendek
+    const accessToken = jwt.sign(
+      { id: user.id, role: user.role, username: user.username }, // payload minimal (lebih baik)
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: "15m" }
+    );
+
+    // 2) Refresh token opaque + hash untuk DB
+    const refreshToken = generateRefreshToken();
+    const refreshHash = hashRefreshToken(refreshToken);
+    const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 hari
+
+    // 3) Single-device: overwrite session lama
+    await user.update({
+      refresh_token_hash: refreshHash,
+      refresh_expires_at: refreshExpiresAt,
+      refresh_rotated_at: new Date(),
     });
+
+    // 4) Set cookie refresh (HttpOnly)
+    setRefreshCookie(res, refreshToken);
+
+    return res.status(200).json({
+      status: "Success",
+      message: "Login berhasil",
+      user: safeUserData,
+      accessToken,
+    });
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ status: "error", message: "Internal server error" });
   }
-}
+};
 
 //nambah logout
 const logout = async (req, res) => {
-  const refreshToken = req.cookies.refreshToken;
-  //console.log({ refreshToken });
+  try {
+    const refreshToken = req.cookies.refreshToken;
 
-  // Tidak ada refresh token? Langsung hapus cookie, tidak perlu sentuh DB
-  if (!refreshToken) {
-    res.clearCookie("refreshToken");
-    return res.sendStatus(204); // No Content
-  }
+    // Selalu clear cookie (idempotent)
+    clearRefreshCookie(res);
 
-  const user = await User.findOne({
-    where: {
-      refresh_token: refreshToken,
-    },
-  });
-
-  // Token tidak cocok dengan database
-  if (!user) {
-    res.clearCookie("refreshToken"); // tetap hapus cookie
-    return res.sendStatus(204);
-  }
-
-  // Token cocok → hanya hapus dari DB untuk device ini
-  await User.update(
-    { refresh_token: null },
-    {
-      where: {
-        id: user.id,
-      },
+    if (!refreshToken) {
+      return res.status(200).json({ msg: "Logged out successfully1" });
     }
-  );
 
-  res.clearCookie("refreshToken"); // hapus cookie dari browser
-  return res.sendStatus(200);
-}
+    const refreshHash = hashRefreshToken(refreshToken);
+    // Single-device: revoke session untuk user ini
+    await User.update(
+      {
+        refresh_token_hash: null,
+        refresh_expires_at: null,
+        refresh_rotated_at: new Date(),
+      },
+      {
+        where: {
+          refresh_token_hash: refreshHash,
+        },
+      }
+    );
 
-export {
-  login,
-  logout
+    return res.status(200).json({ msg: "Logged out successfully" });
+  } catch (error) {
+    console.error(error);
+    return res.sendStatus(500);
+  }
 };
+
+export { login, logout };

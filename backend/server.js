@@ -28,7 +28,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(cookieParser());
 // Catatan: untuk cookie auth, biasanya perlu konfigurasi cors lebih spesifik (origin + credentials).
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:5173', // URL frontend Vite
+  credentials: true // WAJIB untuk cookie
+}));
 app.use(
   express.json({
     limit: "25mb", // naikkan limit agar lampiran base64 tidak ditolak
@@ -63,9 +66,8 @@ app.use("/api/admin/reports", adminUjiAksesReportRoutes);
 // Bootstrapping server + koneksi database
 const startServer = async () => {
   try {
-    await db.authenticate();
-    // Gunakan alter agar kolom baru (message_id, attachments) otomatis ditambahkan
-    await db.sync({ alter: true });
+    await db.sync();
+    console.log("Koneksi database berhasil");
 
     app.listen(PORT, () => {
       console.log(`Server berjalan pada port ${PORT}`);
