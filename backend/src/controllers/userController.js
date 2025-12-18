@@ -19,6 +19,25 @@ const createUser = async (req, res) => {
   }
 }
 
+const resetUserPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User tidak ditemukan' });
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await user.update({ password: hashedPassword });
+    return res.json({ message: 'Password berhasil direset' });
+  }
+  catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Gagal mereset password' });
+  }
+};
+
+
 // List users (admin)
 const listUsers = async (_req, res) => {
   try {
@@ -118,33 +137,12 @@ const deleteUser = async (req, res) => {
     }
   };
 
-const resetPassword = async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { password } = req.body;
-      if (!password || password.length < 4) {
-        return res.status(400).json({ message: 'Password baru wajib diisi' });
-      }
-      const user = await User.findByPk(id);
-      if (!user) {
-        return res.status(404).json({ message: 'User tidak ditemukan' });
-      }
-      const hashed = await bcrypt.hash(password, 10);
-      await user.update({ password: hashed });
-      return res.json({ message: 'Password berhasil direset' });
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({ message: 'Gagal reset password' });
-    }
-  };
-
-
 export {
   createUser,
   listUsers,
   getMe,
   updateRole,
   deleteUser,
-  resetPassword
+  resetUserPassword
 }
   
