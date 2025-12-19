@@ -18,6 +18,8 @@ import holidayRoutes from "./src/routes/holidayRoutes.js";
 import newsRoutes from "./src/routes/newsRoutes.js";
 import ujiAksesReportRoutes from "./src/routes/ujiAksesReportRoutes.js";
 import adminUjiAksesReportRoutes from "./src/routes/adminUjiAksesReportRoutes.js";
+import ujiAksesQuestionRoutes from "./src/routes/ujiAksesQuestionRoutes.js";
+import { seedUjiAksesQuestionsIfEmpty } from "./src/utils/seedUjiAksesQuestions.js";
 
 dotenv.config();
 
@@ -62,11 +64,13 @@ app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 // Modul Laporan Uji Akses
 app.use("/api/reports", ujiAksesReportRoutes);
 app.use("/api/admin/reports", adminUjiAksesReportRoutes);
+app.use("/uji-akses/questions", ujiAksesQuestionRoutes);
 
 // Bootstrapping server + koneksi database
 const startServer = async () => {
   try {
     await db.sync();
+    await seedUjiAksesQuestionsIfEmpty();
     console.log("Koneksi database berhasil");
 
     app.listen(PORT, () => {

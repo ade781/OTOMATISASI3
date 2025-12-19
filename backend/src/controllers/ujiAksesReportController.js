@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { Op } from 'sequelize';
-import { UjiAksesReport, BadanPublik, User, Assignment } from '../models/index.js';
-import { computeAnswersAndTotal, validateSubmittedAnswers, QUESTIONS, normalizeMaybeJson} from '../utils/ujiAksesRubric.js';
+import { UjiAksesReport, BadanPublik, User, Assignment, UjiAksesQuestion, UjiAksesOption } from '../models/index.js';
+import { computeAnswersAndTotal, validateSubmittedAnswers, normalizeMaybeJson } from '../utils/ujiAksesScoring.js';
 
 const ensureUploadsDir = (dir) => {
   try {
@@ -20,6 +20,29 @@ const userCanAccessBadanPublik = async (user, badanPublikId) => {
   });
   return Boolean(found);
 };
+
+const loadQuestions = async () =>
+  UjiAksesQuestion.findAll({
+    include: [{ model: UjiAksesOption, as: 'options' }],
+    order: [
+      ['order', 'ASC'],
+      [{ model: UjiAksesOption, as: 'options' }, 'order', 'ASC']
+    ]
+  });
+
+const toRubric = (questions = []) =>
+  questions.map((q) => ({
+    key: q.key,
+    section: q.section,
+    text: q.text,
+    order: q.order,
+    options: (q.options || []).map((o) => ({
+      key: o.key,
+      label: o.label,
+      score: o.score,
+      order: o.order
+    }))
+  }));
 
 const getReportOr403 = async (req, res, reportId) => {
   const report = await UjiAksesReport.findByPk(reportId, {
@@ -61,10 +84,11 @@ const createReport = async (req, res) => {
     }
 
     const status = payload.status === 'submitted' ? 'submitted' : 'draft';
-    const computed = computeAnswersAndTotal(payload.answers || {});
+    const questions = await loadQuestions();
+    const computed = computeAnswersAndTotal(toRubric(questions), payload.answers || {});
 
     if (status === 'submitted') {
-      const missing = validateSubmittedAnswers(computed.answers);
+      const missing = validateSubmittedAnswers(toRubric(questions), computed.answers);
       if (missing.length) {
         return res.status(400).json({ message: `Jawaban belum lengkap: ${missing.join(', ')}` });
       }
@@ -96,7 +120,8 @@ const updateDraftReport = async (req, res) => {
       return res.status(400).json({ message: 'Report sudah submitted dan tidak bisa diubah' });
     }
 
-    const computed = computeAnswersAndTotal(req.body?.answers || {});
+    const questions = await loadQuestions();
+    const computed = computeAnswersAndTotal(toRubric(questions), req.body?.answers || {});
     await report.update({
       answers: computed.answers,
       total_skor: computed.totalSkor
@@ -127,7 +152,8 @@ const getReportDetail = async (req, res) => {
   try {
     const report = await getReportOr403(req, res, req.params.id);
     if (!report) return;
-    return res.json({ report: toPlainReport(report), rubric: QUESTIONS });
+    const questions = await loadQuestions();
+    return res.json({ report: toPlainReport(report), rubric: toRubric(questions) });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Gagal mengambil detail laporan' });
@@ -143,8 +169,9 @@ const submitReport = async (req, res) => {
       return res.json(report);
     }
 
-    const computed = computeAnswersAndTotal(report.answers || {});
-    const missing = validateSubmittedAnswers(computed.answers);
+    const questions = await loadQuestions();
+    const computed = computeAnswersAndTotal(toRubric(questions), report.answers || {});
+    const missing = validateSubmittedAnswers(toRubric(questions), computed.answers);
     if (missing.length) {
       return res.status(400).json({ message: `Jawaban belum lengkap: ${missing.join(', ')}` });
     }
@@ -210,7 +237,9 @@ const uploadEvidence = async (req, res) => {
     }
 
     const questionKey = String(req.body?.questionKey || req.query?.questionKey || '').trim();
-    if (!QUESTIONS.some((q) => q.key === questionKey)) {
+    const questions = await loadQuestions();
+    const validKeys = new Set(questions.map((q) => q.key));
+    if (!validKeys.has(questionKey)) {
       return res.status(400).json({ message: 'questionKey tidak valid' });
     }
 

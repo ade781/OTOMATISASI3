@@ -16,6 +16,7 @@ const baseLinks = [
 const adminLinks = [
   { to: '/penugasan', label: 'Penugasan', icon: 'clipboard' },
   { to: '/admin/laporan/uji-akses', label: 'Laporan Uji Akses', icon: 'report' },
+  { to: '/admin/uji-akses/pertanyaan', label: 'Pertanyaan Uji Akses', icon: 'report' },
   { to: '/users', label: 'Tambah User', icon: 'users' }
 ];
 

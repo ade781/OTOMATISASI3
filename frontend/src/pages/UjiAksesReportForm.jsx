@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import UjiAksesQuestionCard from '../components/reports/UjiAksesQuestionCard';
-import { UJI_AKSES_QUESTIONS, computeUjiAksesScores, isUjiAksesComplete } from '../constants/ujiAksesRubric';
+import { computeUjiAksesScores, isUjiAksesComplete, normalizeAnswers } from '../constants/ujiAksesRubric';
 import {
   createUjiAksesReport,
+  getUjiAksesQuestions,
   getUjiAksesReportDetail,
   submitUjiAksesReport,
   updateUjiAksesDraft,
@@ -27,31 +28,30 @@ const formatDate = (dateStr) => {
   return `${datePart}: ${timePart}`;
 };
 
-const normalizeAnswerState = (answersFromServer) => {
-  const next = {};
-  for (const q of UJI_AKSES_QUESTIONS) {
-    const raw = answersFromServer?.[q.key] || {};
-    next[q.key] = { optionKey: raw.optionKey || null, catatan: raw.catatan || '' };
-  }
-  return next;
-};
-
 const UjiAksesReportForm = ({ reportId }) => {
   const navigate = useNavigate();
   const [badanPublik, setBadanPublik] = useState([]);
   const [loadingBadan, setLoadingBadan] = useState(true);
   const [loadingReport, setLoadingReport] = useState(Boolean(reportId));
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+  const [questions, setQuestions] = useState([]);
 
   const [selectedBadanId, setSelectedBadanId] = useState('');
   const [report, setReport] = useState(null);
-  const [answers, setAnswers] = useState(() => normalizeAnswerState({}));
+  const [answers, setAnswers] = useState({});
   const [evidences, setEvidences] = useState({});
   const [pendingFiles, setPendingFiles] = useState(() => ({}));
 
-  const computed = useMemo(() => computeUjiAksesScores(answers), [answers]);
+  const computed = useMemo(() => computeUjiAksesScores(questions, answers), [questions, answers]);
+  const totalMax = useMemo(() => {
+    return questions.reduce((sum, q) => {
+      const maxScore = Math.max(0, ...((q.options || []).map((o) => Number(o.score) || 0)));
+      return sum + maxScore;
+    }, 0);
+  }, [questions]);
   const isSubmitted = report?.status === 'submitted';
   const canEdit = !isSubmitted;
 
@@ -74,15 +74,31 @@ const UjiAksesReportForm = ({ reportId }) => {
     try {
       const data = await getUjiAksesReportDetail(reportId);
       const r = data?.report;
+      const rubric = data?.rubric || [];
       setReport(r);
+      setQuestions(rubric);
       setSelectedBadanId(String(r?.badan_publik_id || ''));
-      setAnswers(normalizeAnswerState(r?.answers || {}));
+      setAnswers(normalizeAnswers(rubric, r?.answers || {}));
       setEvidences(r?.evidences || {});
       setPendingFiles({});
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal memuat laporan');
     } finally {
       setLoadingReport(false);
+    }
+  }, [reportId]);
+
+  const loadQuestions = useCallback(async () => {
+    if (reportId) return;
+    setLoadingQuestions(true);
+    try {
+      const data = await getUjiAksesQuestions();
+      setQuestions(data || []);
+      setAnswers(normalizeAnswers(data || [], {}));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal memuat pertanyaan');
+    } finally {
+      setLoadingQuestions(false);
     }
   }, [reportId]);
 
@@ -93,6 +109,10 @@ const UjiAksesReportForm = ({ reportId }) => {
   useEffect(() => {
     loadReport();
   }, [loadReport]);
+
+  useEffect(() => {
+    loadQuestions();
+  }, [loadQuestions]);
 
   const updateAnswer = (key, patch) => {
     setAnswers((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
@@ -115,7 +135,7 @@ const UjiAksesReportForm = ({ reportId }) => {
 
   const buildPayloadAnswers = () => {
     const payload = {};
-    for (const q of UJI_AKSES_QUESTIONS) {
+    for (const q of questions) {
       payload[q.key] = {
         optionKey: answers?.[q.key]?.optionKey || null,
         catatan: answers?.[q.key]?.catatan || ''
@@ -151,7 +171,7 @@ const UjiAksesReportForm = ({ reportId }) => {
       }
 
       const id = current.id;
-      for (const q of UJI_AKSES_QUESTIONS) {
+      for (const q of questions) {
         await doUploadForQuestion(id, q.key);
       }
 
@@ -172,7 +192,7 @@ const UjiAksesReportForm = ({ reportId }) => {
       setError('Pilih badan publik terlebih dulu.');
       return;
     }
-    if (!isUjiAksesComplete(answers)) {
+    if (!isUjiAksesComplete(questions, answers)) {
       setError('Semua pertanyaan wajib dijawab untuk submit.');
       return;
     }
@@ -203,7 +223,7 @@ const UjiAksesReportForm = ({ reportId }) => {
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{reportId ? 'Detail Laporan Uji Akses' : 'Buat Laporan Uji Akses'}</h1>
-          <p className="text-sm text-slate-600">Rubrik: Penilaian Hasil Uji Akses 2025 (6 pertanyaan).</p>
+          <p className="text-sm text-slate-600">Rubrik: {questions.length} pertanyaan.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {canEdit && (
@@ -249,7 +269,7 @@ const UjiAksesReportForm = ({ reportId }) => {
               <option value="">{loadingBadan ? 'Memuat...' : 'Pilih badan publik'}</option>
               {badanPublik.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.nama_badan_publik} — {b.kategori}
+                  {b.nama_badan_publik} - {b.kategori}
                 </option>
               ))}
             </select>
@@ -257,7 +277,7 @@ const UjiAksesReportForm = ({ reportId }) => {
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
             <div className="text-xs font-semibold text-slate-500">Total Skor</div>
             <div className="text-3xl font-extrabold text-slate-900">{computed.totalSkor}</div>
-            <div className="text-xs text-slate-500">Maks: 100</div>
+            <div className="text-xs text-slate-500">Maks: {totalMax}</div>
           </div>
         </div>
 
@@ -291,39 +311,46 @@ const UjiAksesReportForm = ({ reportId }) => {
       </div>
 
       <div className="space-y-4">
-        {UJI_AKSES_QUESTIONS.map((q, idx) => (
-          <UjiAksesQuestionCard
-            key={q.key}
-            number={idx + 1}
-            text={q.text}
-            options={q.options}
-            value={answers?.[q.key]?.optionKey || null}
-            catatan={answers?.[q.key]?.catatan || ''}
-            onChangeOption={(optKey) => updateAnswer(q.key, { optionKey: optKey })}
-            onChangeCatatan={(val) => updateAnswer(q.key, { catatan: val })}
-            disabled={!canEdit || loadingReport}
-            evidences={evidences?.[q.key] || []}
-            pendingFiles={pendingFiles?.[q.key] || []}
-            onPickFiles={(files) => pickFiles(q.key, files)}
-            onUploadNow={
-              report?.id
-                ? async () => {
-                    setError('');
-                    setInfo('');
-                    try {
-                      setSaving(true);
-                      await doUploadForQuestion(report.id, q.key);
-                      setInfo('Bukti berhasil diupload.');
-                    } catch (err) {
-                      setError(err.response?.data?.message || 'Gagal upload bukti');
-                    } finally {
-                      setSaving(false);
+        {(loadingReport || loadingQuestions) && (
+          <div className="px-4 py-4 rounded-2xl bg-slate-50 border border-slate-200 text-sm text-slate-600">
+            Memuat pertanyaan...
+          </div>
+        )}
+        {!loadingReport &&
+          !loadingQuestions &&
+          questions.map((q, idx) => (
+            <UjiAksesQuestionCard
+              key={q.key}
+              number={idx + 1}
+              text={q.text}
+              options={q.options}
+              value={answers?.[q.key]?.optionKey || null}
+              catatan={answers?.[q.key]?.catatan || ''}
+              onChangeOption={(optKey) => updateAnswer(q.key, { optionKey: optKey })}
+              onChangeCatatan={(val) => updateAnswer(q.key, { catatan: val })}
+              disabled={!canEdit || loadingReport}
+              evidences={evidences?.[q.key] || []}
+              pendingFiles={pendingFiles?.[q.key] || []}
+              onPickFiles={(files) => pickFiles(q.key, files)}
+              onUploadNow={
+                report?.id
+                  ? async () => {
+                      setError('');
+                      setInfo('');
+                      try {
+                        setSaving(true);
+                        await doUploadForQuestion(report.id, q.key);
+                        setInfo('Bukti berhasil diupload.');
+                      } catch (err) {
+                        setError(err.response?.data?.message || 'Gagal upload bukti');
+                      } finally {
+                        setSaving(false);
+                      }
                     }
-                  }
-                : null
-            }
-          />
-        ))}
+                  : null
+              }
+            />
+          ))}
       </div>
 
       <div className="bg-white rounded-3xl border border-slate-200 shadow-soft p-5 space-y-3">
@@ -345,7 +372,7 @@ const UjiAksesReportForm = ({ reportId }) => {
               </tr>
             </thead>
             <tbody>
-              {UJI_AKSES_QUESTIONS.map((q, idx) => (
+              {questions.map((q, idx) => (
                 <tr key={q.key} className="border-t border-slate-100">
                   <td className="px-4 py-3">
                     <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide">

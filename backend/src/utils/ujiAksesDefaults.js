@@ -1,4 +1,4 @@
-const QUESTIONS = [
+const DEFAULT_QUESTIONS = [
   {
     key: 'q1',
     section: 'A. Kemudahan Cara',
@@ -55,17 +55,20 @@ const QUESTIONS = [
       { key: 'diberikan_tidak_sesuai', label: 'Informasi diberikan: tidak sesuai', score: 0 },
       {
         key: 'tidak_diberikan_tidak_dikuasai_ada_bukti_dan_mengarahkan',
-        label: 'Informasi tidak diberikan karena alasan tidak dikuasai: Ada bukti “tidak dikuasai” DAN mengarahkan ke BP yang menguasai',
+        label:
+          'Informasi tidak diberikan karena alasan tidak dikuasai: Ada bukti “tidak dikuasai” DAN mengarahkan ke BP yang menguasai',
         score: 30
       },
       {
         key: 'tidak_diberikan_tidak_dikuasai_tidak_ada_bukti_tapi_mengarahkan',
-        label: 'Informasi tidak diberikan karena alasan tidak dikuasai: Tidak ada bukti “tidak dikuasai” TAPI mengarahkan',
+        label:
+          'Informasi tidak diberikan karena alasan tidak dikuasai: Tidak ada bukti “tidak dikuasai” TAPI mengarahkan',
         score: 15
       },
       {
         key: 'tidak_diberikan_tidak_dikuasai_ada_bukti_tapi_tidak_mengarahkan',
-        label: 'Informasi tidak diberikan karena alasan tidak dikuasai: Ada bukti “tidak dikuasai” TAPI tidak mengarahkan',
+        label:
+          'Informasi tidak diberikan karena alasan tidak dikuasai: Ada bukti “tidak dikuasai” TAPI tidak mengarahkan',
         score: 15
       },
       {
@@ -116,92 +119,4 @@ const QUESTIONS = [
   }
 ];
 
-const buildOptionScoreMap = () => {
-  const map = new Map();
-  for (const q of QUESTIONS) {
-    const qMap = new Map();
-    for (const opt of q.options) qMap.set(opt.key, opt.score);
-    map.set(q.key, qMap);
-  }
-  return map;
-};
-
-const OPTION_SCORE_MAP = buildOptionScoreMap();
-
-const looksLikeCharMap = (val) => {
-  if (!val || typeof val !== 'object' || Array.isArray(val)) return false;
-  const keys = Object.keys(val);
-  if (keys.length === 0) return false;
-  return keys.every((key, idx) => key === String(idx) && typeof val[key] === 'string' && val[key].length === 1);
-};
-
-const decodeCharMap = (val) => {
-  try {
-    const sortedKeys = Object.keys(val)
-      .map((k) => Number(k))
-      .sort((a, b) => a - b);
-    const combined = sortedKeys.map((k) => val[String(k)]).join('');
-    const parsed = JSON.parse(combined);
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch (err) {
-    return {};
-  }
-};
-
-const normalizeMaybeJson = (val) => {
-  if (!val) return {};
-  if (typeof val === 'string') {
-    try {
-      const parsed = JSON.parse(val);
-      return parsed && typeof parsed === 'object' ? parsed : {};
-    } catch (err) {
-      return {};
-    }
-  }
-  if (typeof val === 'object') {
-    if (looksLikeCharMap(val)) {
-      return decodeCharMap(val);
-    }
-    return val;
-  }
-  return {};
-};
-
-const computeAnswersAndTotal = (inputAnswers = {}) => {
-  const normalizedInput = normalizeMaybeJson(inputAnswers);
-  const computedAnswers = {};
-  let total = 0;
-
-  for (const q of QUESTIONS) {
-    const raw = normalizedInput?.[q.key] || {};
-    const optionKey = raw.optionKey || raw.option_key || null;
-    const note = raw.catatan ?? raw.note ?? null;
-    const score = optionKey && OPTION_SCORE_MAP.get(q.key)?.has(optionKey) ? OPTION_SCORE_MAP.get(q.key).get(optionKey) : 0;
-
-    computedAnswers[q.key] = {
-      optionKey: optionKey || null,
-      score,
-      catatan: note ? String(note).slice(0, 2000) : null
-    };
-    total += score;
-  }
-
-  return { answers: computedAnswers, totalSkor: total };
-};
-
-const validateSubmittedAnswers = (answers = {}) => {
-  const normalized = normalizeMaybeJson(answers);
-  const missing = [];
-  for (const q of QUESTIONS) {
-    const opt = normalized?.[q.key]?.optionKey;
-    if (!opt) missing.push(q.key);
-  }
-  return missing;
-};
-
-export{
-  QUESTIONS,
-  computeAnswersAndTotal,
-  validateSubmittedAnswers,
-  normalizeMaybeJson
-};
+export default DEFAULT_QUESTIONS;

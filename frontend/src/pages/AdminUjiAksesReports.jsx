@@ -174,7 +174,7 @@ const AdminUjiAksesReports = () => {
                   duplicateSummary.map((item) => (
                     <div key={item.name} className="flex justify-between gap-2">
                       <span className="truncate">{item.name}</span>
-                      <span className="font-semibold text-slate-700">×{item.count}</span>
+                      <span className="font-semibold text-slate-700">x{item.count}</span>
                     </div>
                   ))
                 )}

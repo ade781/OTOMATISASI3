@@ -46,3 +46,32 @@ export const uploadUjiAksesEvidence = async (id, questionKey, files = []) => {
   return res.data;
 };
 
+export const getUjiAksesQuestions = async () => {
+  const res = await api.get('/uji-akses/questions');
+  return res.data;
+};
+
+export const createUjiAksesQuestion = async (payload) => {
+  const res = await api.post('/uji-akses/questions', payload);
+  return res.data;
+};
+
+export const updateUjiAksesQuestion = async (id, payload) => {
+  const res = await api.put(`/uji-akses/questions/${id}`, payload);
+  return res.data;
+};
+
+export const deleteUjiAksesQuestion = async (id) => {
+  const res = await api.delete(`/uji-akses/questions/${id}`);
+  return res.data;
+};
+
+export const deleteAllUjiAksesQuestions = async () => {
+  const res = await api.delete('/uji-akses/questions/all');
+  return res.data;
+};
+
+export const resetUjiAksesQuestions = async () => {
+  const res = await api.post('/uji-akses/questions/reset');
+  return res.data;
+};

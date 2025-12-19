@@ -16,6 +16,7 @@ import UjiAksesReportNew from './pages/UjiAksesReportNew';
 import UjiAksesReportDetail from './pages/UjiAksesReportDetail';
 import AdminUjiAksesReports from './pages/AdminUjiAksesReports';
 import AdminUjiAksesReportDetail from './pages/AdminUjiAksesReportDetail';
+import UjiAksesQuestionManager from './pages/UjiAksesQuestionManager';
 
 const App = () => {
 
@@ -42,6 +43,7 @@ const App = () => {
 
             <Route path="/admin/laporan/uji-akses" element={<AdminUjiAksesReports />} />
             <Route path="/admin/laporan/uji-akses/:id" element={<AdminUjiAksesReportDetail />} />
+            <Route path="/admin/uji-akses/pertanyaan" element={<UjiAksesQuestionManager />} />
           </Route>
         </Route>
       </Routes>

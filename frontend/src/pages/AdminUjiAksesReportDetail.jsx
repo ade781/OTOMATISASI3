@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { adminGetUjiAksesReportDetail } from '../services/reports';
-import { UJI_AKSES_QUESTIONS } from '../constants/ujiAksesRubric';
 import { buildServerFileUrl } from '../utils/serverUrl';
 
 const isImage = (mimetype = '') => String(mimetype).startsWith('image/');
@@ -23,18 +22,13 @@ const formatDate = (dateStr) => {
   return `${datePart}: ${timePart}`;
 };
 
-const findOptionLabel = (questionKey, optionKey) => {
-  const q = UJI_AKSES_QUESTIONS.find((x) => x.key === questionKey);
-  const opt = q?.options?.find((o) => o.key === optionKey);
-  return opt ? opt.label : '-';
-};
-
 const AdminUjiAksesReportDetail = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const { id } = useParams();
 
   const [report, setReport] = useState(null);
+  const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -44,6 +38,7 @@ const AdminUjiAksesReportDetail = () => {
     try {
       const data = await adminGetUjiAksesReportDetail(id);
       setReport(data?.report || null);
+      setQuestions(data?.rubric || []);
     } catch (err) {
       setReport(null);
       setError(err.response?.data?.message || 'Gagal memuat detail');
@@ -51,6 +46,12 @@ const AdminUjiAksesReportDetail = () => {
       setLoading(false);
     }
   }, [id]);
+
+  const findOptionLabel = (questionKey, optionKey) => {
+    const q = questions.find((x) => x.key === questionKey);
+    const opt = q?.options?.find((o) => o.key === optionKey);
+    return opt ? opt.label : '-';
+  };
 
   useEffect(() => {
     if (isAdmin) fetchData();
@@ -138,7 +139,7 @@ const AdminUjiAksesReportDetail = () => {
                 </tr>
               </thead>
               <tbody>
-                {UJI_AKSES_QUESTIONS.map((q, idx) => {
+                {questions.map((q, idx) => {
                   const ans = report.answers?.[q.key] || {};
                   const ev = Array.isArray(report.evidences?.[q.key]) ? report.evidences?.[q.key] : [];
                   return (

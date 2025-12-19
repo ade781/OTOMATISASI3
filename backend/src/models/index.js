@@ -9,6 +9,8 @@ import QuotaRequest from "./quotaRequest.js";
 import AssignmentHistory from "./assignmentHistory.js";
 import Holiday from "./holiday.js";
 import UjiAksesReport from "./ujiAksesReport.js";
+import UjiAksesQuestion from "./ujiAksesQuestion.js";
+import UjiAksesOption from "./ujiAksesOption.js";
 
 // Relasi antar model
 
@@ -51,6 +53,13 @@ UjiAksesReport.belongsTo(User, { foreignKey: "user_id", as: "user" });
 BadanPublik.hasMany(UjiAksesReport, { foreignKey: "badan_publik_id", as: "ujiAksesReports" });
 UjiAksesReport.belongsTo(BadanPublik, { foreignKey: "badan_publik_id", as: "badanPublik" });
 
+UjiAksesQuestion.hasMany(UjiAksesOption, {
+  foreignKey: "question_id",
+  as: "options",
+  onDelete: "CASCADE",
+});
+UjiAksesOption.belongsTo(UjiAksesQuestion, { foreignKey: "question_id", as: "question" });
+
 // Export
 export {
   db,
@@ -63,4 +72,6 @@ export {
   AssignmentHistory,
   Holiday,
   UjiAksesReport,
+  UjiAksesQuestion,
+  UjiAksesOption,
 };

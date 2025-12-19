@@ -3,7 +3,6 @@ import { verifyToken } from '../middleware/verifyToken.js';
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
-import { QUESTIONS } from '../utils/ujiAksesRubric.js';
 import {
   createReport,
   updateDraftReport,
@@ -30,10 +29,11 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const reportId = req.params.id;
     const questionKey = String(req.body?.questionKey || req.query?.questionKey || '').trim();
-    if (!QUESTIONS.some((q) => q.key === questionKey)) {
+    if (!questionKey) {
       return cb(new Error('questionKey tidak valid'));
     }
-    const dir = ensureReportUploadDir(reportId, questionKey);
+    const safeKey = questionKey.replace(/[^\w-]/g, '');
+    const dir = ensureReportUploadDir(reportId, safeKey);
     cb(null, dir);
   },
   filename: (req, file, cb) => {
