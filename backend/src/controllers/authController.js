@@ -2,7 +2,12 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { User } from "../models/index.js";
 import { generateRefreshToken, hashRefreshToken } from "../utils/tokens.js";
-import {setRefreshCookie, clearRefreshCookie, setAccessCookie, clearAccessCookie} from "../utils/cookies.js";
+import {
+  setRefreshCookie,
+  clearRefreshCookie,
+  setAccessCookie,
+  clearAccessCookie,
+} from "../utils/cookies.js";
 
 //Nambah fungsi buat login handler
 const login = async (req, res) => {

@@ -29,7 +29,6 @@ const PORT = process.env.PORT || 5000;
 // __dirname replacement untuk ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-app.use(cookieParser());
 // Catatan: untuk cookie auth, biasanya perlu konfigurasi cors lebih spesifik (origin + credentials).
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173', // URL frontend Vite
@@ -40,7 +39,7 @@ app.use(
     limit: "25mb", // naikkan limit agar lampiran base64 tidak ditolak
   })
 );
-
+app.use(cookieParser());
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 app.get("/", (req, res) => {
   res.json({
