@@ -20,16 +20,35 @@ import ujiAksesReportRoutes from "./src/routes/ujiAksesReportRoutes.js";
 import adminUjiAksesReportRoutes from "./src/routes/adminUjiAksesReportRoutes.js";
 import ujiAksesQuestionRoutes from "./src/routes/ujiAksesQuestionRoutes.js";
 import { seedUjiAksesQuestionsIfEmpty } from "./src/utils/seedUjiAksesQuestions.js";
+import helmet from "helmet";
+import { sanitizeMiddleware, sanitizeQueryParams } from "./src/middleware/sanitization.js";
 
 dotenv.config();
 
 const app = express();
-app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 // __dirname replacement untuk ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Catatan: untuk cookie auth, biasanya perlu konfigurasi cors lebih spesifik (origin + credentials).
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  xssFilter: true,
+  noSniff: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+}));
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173', // URL frontend Vite
   credentials: true // WAJIB untuk cookie
@@ -40,6 +59,9 @@ app.use(
   })
 );
 app.use(cookieParser());
+// ✅ SANITIZE SEMUA INPUT
+app.use(sanitizeMiddleware);
+app.use(sanitizeQueryParams);
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 app.get("/", (req, res) => {
   res.json({
