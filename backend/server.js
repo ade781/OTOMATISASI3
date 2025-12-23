@@ -22,6 +22,8 @@ import ujiAksesQuestionRoutes from "./src/routes/ujiAksesQuestionRoutes.js";
 import { seedUjiAksesQuestionsIfEmpty } from "./src/utils/seedUjiAksesQuestions.js";
 import helmet from "helmet";
 import { sanitizeMiddleware, sanitizeQueryParams } from "./src/middleware/sanitization.js";
+import logger from "./src/config/logger.js";
+import { requestLogger, errorLogger } from "./src/middleware/requestLogger.js";
 
 dotenv.config();
 
@@ -38,7 +40,7 @@ app.use(helmet({
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", process.env.CLIENT_URL || 'http://localhost:5173'], // Allow SSE from frontend
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
@@ -59,7 +61,10 @@ app.use(
   })
 );
 app.use(cookieParser());
-// ✅ SANITIZE SEMUA INPUT
+// log setiap request
+app.use(requestLogger);
+
+// SANITIZE SEMUA INPUT
 app.use(sanitizeMiddleware);
 app.use(sanitizeQueryParams);
 app.get("/health", (req, res) => res.json({ status: "ok" }));
@@ -87,19 +92,31 @@ app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 app.use("/api/reports", ujiAksesReportRoutes);
 app.use("/api/admin/reports", adminUjiAksesReportRoutes);
 app.use("/uji-akses/questions", ujiAksesQuestionRoutes);
+// Middleware untuk log error
+app.use(errorLogger);
+
+// Error handler terakhir
+app.use((err, req, res, next) => {
+  // Error sudah di-log oleh errorLogger middleware
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    status: 'error',
+    message: err.message || 'Internal Server Error',
+  });
+});
 
 // Bootstrapping server + koneksi database
 const startServer = async () => {
   try {
     await db.sync();
     await seedUjiAksesQuestionsIfEmpty();
-    console.log("Koneksi database berhasil");
+    logger.info('Database connection successful');
 
     app.listen(PORT, () => {
-      console.log(`Server berjalan pada port ${PORT}`);
+      logger.info(`Server running on port ${PORT}`);
     });
   } catch (err) {
-    console.error("Gagal konek database", err);
+    logger.error('Failed to connect to database', { error: err.message, stack: err.stack });
     process.exit(1);
   }
 };

@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seedAdmin.js",
-    "migrate:uji-akses": "node src/migrations/001-create-uji-akses-reports.js"
+    "migrate:uji-akses": "node src/migrations/001-create-uji-akses-reports.js",
+    "logs:clean": "find logs -name '*.log' -mtime +30 -delete"
   },
   "keywords": [],
   "author": "",

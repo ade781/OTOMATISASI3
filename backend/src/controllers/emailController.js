@@ -441,30 +441,52 @@ const getEmailLogs = async (req, res) => {
 
 // SSE stream untuk update realtime
 const streamEmailLogs = async (req, res) => {
+  // Set SSE headers dengan CORS untuk cross-origin streaming
   res.set({
     "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
+    "Cache-Control": "no-cache, no-transform",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no", // Disable nginx buffering
+    "Access-Control-Allow-Origin": process.env.CLIENT_URL || 'http://localhost:5173',
+    "Access-Control-Allow-Credentials": "true",
   });
+  
+  // Disable timeout untuk SSE
+  req.socket.setKeepAlive(true);
+  req.socket.setTimeout(0);
+  
   res.flushHeaders?.();
 
+  // Send initial connection message
+  res.write(`: connected\n\n`);
+
   const heartbeat = setInterval(() => {
-    res.write(": keep-alive\n\n");
+    if (!res.writableEnded) {
+      res.write(": keep-alive\n\n");
+    }
   }, SSE_HEARTBEAT_INTERVAL);
 
   const listener = (log) => {
     if (!log) return;
     if (req.user.role !== "admin" && log.user_id !== req.user.id) return;
-    res.write(`data: ${JSON.stringify(log)}\n\n`);
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify(log)}\n\n`);
+    }
   };
 
   emailEventBus.on("log", listener);
 
-  req.on("close", () => {
+  const cleanup = () => {
     clearInterval(heartbeat);
     emailEventBus.removeListener("log", listener);
-    res.end();
-  });
+    if (!res.writableEnded) {
+      res.end();
+    }
+  };
+
+  req.on("close", cleanup);
+  req.on("error", cleanup);
+  res.on("error", cleanup);
 };
 
 // Mengulang pengiriman email
