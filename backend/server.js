@@ -4,8 +4,10 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
+import bcrypt from "bcryptjs";
 
 import {db} from "./src/models/index.js";
+import {User} from "./src/models/index.js";
 
 import authRoutes from "./src/routes/authRoutes.js";
 import configRoutes from "./src/routes/configRoutes.js";
@@ -105,11 +107,24 @@ app.use((err, req, res, next) => {
   });
 });
 
+
+async function ensureDefaultAdmin() {
+  const username = process.env.SEED_ADMIN_USERNAME || 'admin';
+  const password = process.env.SEED_ADMIN_PASSWORD || 'admin*#';
+  const existing = await User.findOne({ where: { username } });
+  if (!existing) {
+    const hash = await bcrypt.hash(password, 10);
+    await User.create({ username, password: hash, role: 'admin' });
+    console.log(`[seed] User admin '${username}' dibuat saat startup.`);
+  }
+}
+
 // Bootstrapping server + koneksi database
 const startServer = async () => {
   try {
     await db.sync();
     await seedUjiAksesQuestionsIfEmpty();
+    await ensureDefaultAdmin();
     logger.info('Database connection successful');
 
     app.listen(PORT, () => {
