@@ -1,7 +1,12 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user.js";
 import { generateRefreshToken, hashRefreshToken } from "../utils/tokens.js";
-import { setRefreshCookie, clearRefreshCookie, setAccessCookie, clearAccessCookie } from "../utils/cookies.js";
+import {
+  setRefreshCookie,
+  clearRefreshCookie,
+  setAccessCookie,
+  clearAccessCookie,
+} from "../utils/cookies.js";
 
 export const refreshToken = async (req, res) => {
   try {
@@ -13,6 +18,8 @@ export const refreshToken = async (req, res) => {
     const user = await User.findOne({
       where: { refresh_token_hash: refreshHash },
     });
+    clearRefreshCookie(res);
+    clearAccessCookie(res);
 
     // Token tidak cocok / sudah di-rotate / login di device lain
     if (!user) {
@@ -22,7 +29,10 @@ export const refreshToken = async (req, res) => {
     }
 
     // Cek expiry di DB (authoritative)
-    if (!user.refresh_expires_at || new Date(user.refresh_expires_at) <= new Date()) {
+    if (
+      !user.refresh_expires_at ||
+      new Date(user.refresh_expires_at) <= new Date()
+    ) {
       await user.update({
         refresh_token_hash: null,
         refresh_expires_at: null,
