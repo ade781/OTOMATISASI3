@@ -1,23 +1,6 @@
 version: "3.9"
 
 services:
-  db:
-    image: mysql:8.0
-    container_name: oto2_db
-    environment:
-      MYSQL_DATABASE: oto2_db
-      MYSQL_USER: oto2_db
-      MYSQL_PASSWORD: oto2_db_pass
-      MYSQL_ROOT_PASSWORD: rootpass
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -prootpass || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
 
   backend:
     image: node:20
@@ -32,9 +15,7 @@ services:
       - /app/node_modules
       - ./uploads:/app/uploads
     command: sh -c "npm ci || npm install; node server.js"
-    depends_on:
-      db:
-        condition: service_healthy
+    
 
   frontend:
     image: node:20
@@ -50,6 +31,3 @@ services:
     command: sh -c "npm ci || npm install; npm run dev"
     depends_on:
       - backend
-
-volumes:
-  mysql_data:
