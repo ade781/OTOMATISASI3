@@ -5,13 +5,8 @@ export const createUjiAksesReport = async (payload) => {
   return res.data;
 };
 
-export const updateUjiAksesDraft = async (id, payload) => {
-  const res = await api.patch(`/api/reports/${id}`, payload);
-  return res.data;
-};
-
-export const submitUjiAksesReport = async (id) => {
-  const res = await api.patch(`/api/reports/${id}/submit`);
+export const submitUjiAksesReport = async (id, payload = {}) => {
+  const res = await api.patch(`/api/reports/${id}/submit`, payload);
   return res.data;
 };
 

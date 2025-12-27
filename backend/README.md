@@ -190,10 +190,8 @@ Base path: `/api/reports`
 - GET: `/:id`
   - Respon: `{ report, rubric }` (rubric berisi daftar pertanyaan `QUESTIONS`).
 
-- PATCH: `/:id`
-  - Body: `{ answers: object }` untuk menyimpan draft (tidak berlaku jika sudah submitted).
-
 - PATCH: `/:id/submit`
+  - Body opsional: `{ answers: object }`
   - Menyelesaikan laporan; validasi kelengkapan jawaban.
 
 - POST: `/:id/upload`

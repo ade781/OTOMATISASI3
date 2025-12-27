@@ -8,7 +8,6 @@ import {
   getUjiAksesQuestions,
   getUjiAksesReportDetail,
   submitUjiAksesReport,
-  updateUjiAksesDraft,
   uploadUjiAksesEvidence
 } from '../services/reports';
 
@@ -144,47 +143,6 @@ const UjiAksesReportForm = ({ reportId }) => {
     return payload;
   };
 
-  const saveDraft = async ({ navigateAfterCreate = true } = {}) => {
-    setSaving(true);
-    setError('');
-    setInfo('');
-    try {
-      const badanPublikId = Number(selectedBadanId);
-      if (!badanPublikId) {
-        setError('Pilih badan publik terlebih dulu.');
-        return null;
-      }
-
-      const payload = { badanPublikId, status: 'draft', answers: buildPayloadAnswers() };
-
-      let current = report;
-      if (!current?.id) {
-        current = await createUjiAksesReport(payload);
-        setReport(current);
-        setEvidences(current?.evidences || {});
-        if (navigateAfterCreate) {
-          navigate(`/laporan/uji-akses/${current.id}`, { replace: true });
-        }
-      } else {
-        current = await updateUjiAksesDraft(current.id, { answers: buildPayloadAnswers() });
-        setReport(current);
-      }
-
-      const id = current.id;
-      for (const q of questions) {
-        await doUploadForQuestion(id, q.key);
-      }
-
-      setInfo('Draft tersimpan.');
-      return current;
-    } catch (err) {
-      setError(err.response?.data?.message || 'Gagal menyimpan draft');
-      return null;
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const submit = async () => {
     setError('');
     setInfo('');
@@ -197,15 +155,31 @@ const UjiAksesReportForm = ({ reportId }) => {
       return;
     }
 
-    const saved = await saveDraft({ navigateAfterCreate: false });
-    if (!saved?.id) return;
-
     setSaving(true);
     try {
-      const updated = await submitUjiAksesReport(saved.id);
+      let current = report;
+      const answersPayload = buildPayloadAnswers();
+
+      if (!current?.id) {
+        const badanPublikId = Number(selectedBadanId);
+        current = await createUjiAksesReport({
+          badanPublikId,
+          status: 'draft',
+          answers: answersPayload
+        });
+        setReport(current);
+        setEvidences(current?.evidences || {});
+      }
+
+      const id = current.id;
+      for (const q of questions) {
+        await doUploadForQuestion(id, q.key);
+      }
+
+      const updated = await submitUjiAksesReport(id, { answers: answersPayload });
       setReport(updated);
       setInfo('Laporan berhasil disubmit. Form menjadi read-only.');
-      navigate(`/laporan/uji-akses/${saved.id}`, { replace: true });
+      navigate(`/laporan/uji-akses/${id}`, { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Gagal submit laporan');
     } finally {
@@ -228,14 +202,6 @@ const UjiAksesReportForm = ({ reportId }) => {
         <div className="flex items-center gap-2 flex-wrap">
           {canEdit && (
             <>
-              <button
-                onClick={() => saveDraft({ navigateAfterCreate: true })}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
-                disabled={saving}
-                type="button"
-              >
-                Simpan Draft
-              </button>
               <button
                 onClick={submit}
                 className="px-4 py-2 rounded-xl bg-primary text-white font-semibold shadow-soft hover:bg-emerald-700 text-sm"

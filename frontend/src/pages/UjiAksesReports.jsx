@@ -50,7 +50,7 @@ const UjiAksesReports = () => {
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Laporan Uji Akses</h1>
-          <p className="text-sm text-slate-600">Daftar laporan uji akses yang Anda buat (draft/submitted).</p>
+          <p className="text-sm text-slate-600">Daftar laporan uji akses yang Anda buat.</p>
         </div>
         <div className="flex items-center gap-2">
           <Link

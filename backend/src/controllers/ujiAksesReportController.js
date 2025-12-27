@@ -168,33 +168,6 @@ const createReport = async (req, res) => {
   }
 };
 
-const updateDraftReport = async (req, res) => {
-  try {
-    const report = await getReportOr403(req, res, req.params.id);
-    if (!report) return;
-
-    if (report.status === "submitted") {
-      return res.status(400).json({
-        message: "Report sudah submitted dan tidak bisa diubah",
-      });
-    }
-
-    const questions = await loadQuestions();
-    const { answers = {} } = req.body;
-    const computed = computeAnswersAndTotal(toRubric(questions), answers);
-
-    await report.update({
-      answers: computed.answers,
-      total_skor: computed.totalSkor,
-    });
-
-    return res.json(toPlainReport(report));
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Gagal menyimpan draft" });
-  }
-};
-
 const listMyReports = async (req, res) => {
   try {
     const reports = await UjiAksesReport.findAll({
@@ -237,10 +210,8 @@ const submitReport = async (req, res) => {
     }
 
     const questions = await loadQuestions();
-    const computed = computeAnswersAndTotal(
-      toRubric(questions),
-      report.answers || {}
-    );
+    const answers = req.body?.answers ?? report.answers ?? {};
+    const computed = computeAnswersAndTotal(toRubric(questions), answers);
     const missing = validateSubmittedAnswers(
       toRubric(questions),
       computed.answers
@@ -390,7 +361,6 @@ const ensureReportUploadDir = (reportId, questionKey) => {
 
 export {
   createReport,
-  updateDraftReport,
   listMyReports,
   getReportDetail,
   submitReport,

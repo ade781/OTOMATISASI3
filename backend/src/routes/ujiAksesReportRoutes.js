@@ -5,7 +5,6 @@ import crypto from 'crypto';
 import { verifyToken } from '../middleware/verifyToken.js';
 import {
   createReport,
-  updateDraftReport,
   listMyReports,
   getReportDetail,
   submitReport,
@@ -64,7 +63,6 @@ router.use(verifyToken);
 router.get('/me', listMyReports);
 router.get('/:id', getReportDetail);
 router.post('/', createReport);
-router.patch('/:id', updateDraftReport);
 router.patch('/:id/submit', submitReport);
 router.post('/:id/upload', upload.array('files', MAX_FILES), uploadEvidence);
 
