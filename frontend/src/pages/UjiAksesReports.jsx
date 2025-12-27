@@ -21,6 +21,7 @@ const formatDate = (dateStr) => {
 const UjiAksesReports = () => {
   const [reports, setReports] = useState([]);
   const [questions, setQuestions] = useState([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -42,29 +43,42 @@ const UjiAksesReports = () => {
     fetchData();
   }, [fetchData]);
 
-  useEffect(() => {
-    const loadQuestions = async () => {
-      try {
-        const data = await getUjiAksesQuestions();
-        setQuestions(data || []);
-      } catch (_err) {
-        setQuestions([]);
-      }
-    };
-    loadQuestions();
+  const loadQuestions = useCallback(async () => {
+    setQuestionsLoading(true);
+    try {
+      const data = await getUjiAksesQuestions();
+      setQuestions(data || []);
+      return data || [];
+    } catch (_err) {
+      setQuestions([]);
+      return [];
+    } finally {
+      setQuestionsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadQuestions();
+  }, [loadQuestions]);
 
   const sorted = useMemo(() => {
     return (reports || []).slice().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [reports]);
 
-  const questionColumns = useMemo(() => {
-    return (questions || []).map((q, idx) => ({
+  const buildQuestionColumns = (questionList) => {
+    return (questionList || []).map((q, idx) => ({
       key: q.key,
       label: `Q${idx + 1}: ${q.text}`,
       options: q.options || []
     }));
-  }, [questions]);
+  };
+
+  const questionColumns = useMemo(() => buildQuestionColumns(questions), [questions]);
+
+  const ensureQuestionsLoaded = useCallback(async () => {
+    if (questions.length) return questions;
+    return loadQuestions();
+  }, [questions, loadQuestions]);
 
   const getQuestionScore = (question, answers) => {
     const answer = answers?.[question.key];
@@ -74,14 +88,16 @@ const UjiAksesReports = () => {
     return option.score ?? '';
   };
 
-  const exportCsv = () => {
+  const exportCsv = async () => {
+    const questionList = await ensureQuestionsLoaded();
+    const columns = buildQuestionColumns(questionList);
     const rows = sorted.map((item) => [
       formatDate(item.created_at || item.createdAt),
       item.badanPublik?.nama_badan_publik || '-',
       item.total_skor ?? 0,
-      ...questionColumns.map((q) => getQuestionScore(q, item.answers))
+      ...columns.map((q) => getQuestionScore(q, item.answers))
     ]);
-    const header = ['Tanggal', 'Badan Publik', 'Total Skor', ...questionColumns.map((q) => q.label)];
+    const header = ['Tanggal', 'Badan Publik', 'Total Skor', ...columns.map((q) => q.label)];
     const toCsv = [header, ...rows]
       .map((cols) =>
         cols
@@ -101,12 +117,14 @@ const UjiAksesReports = () => {
   };
 
   const exportXlsx = async () => {
+    const questionList = await ensureQuestionsLoaded();
+    const columns = buildQuestionColumns(questionList);
     const { utils, writeFile } = await import('xlsx');
     const rows = sorted.map((item) => ({
       Tanggal: formatDate(item.created_at || item.createdAt),
       'Badan Publik': item.badanPublik?.nama_badan_publik || '-',
       'Total Skor': item.total_skor ?? 0,
-      ...questionColumns.reduce((acc, q) => {
+      ...columns.reduce((acc, q) => {
         acc[q.label] = getQuestionScore(q, item.answers);
         return acc;
       }, {})
@@ -118,6 +136,8 @@ const UjiAksesReports = () => {
   };
 
   const exportPdf = async () => {
+    const questionList = await ensureQuestionsLoaded();
+    const columns = buildQuestionColumns(questionList);
     const { jsPDF } = await import('jspdf');
     const doc = new jsPDF();
     doc.setFontSize(14);
@@ -130,7 +150,7 @@ const UjiAksesReports = () => {
         `Tanggal: ${formatDate(item.created_at || item.createdAt)}`,
         `Total Skor: ${item.total_skor ?? 0}`
       ];
-      questionColumns.forEach((q) => {
+      columns.forEach((q) => {
         lines.push(`${q.label}: ${getQuestionScore(q, item.answers)}`);
       });
       lines.forEach((line) => {
@@ -159,19 +179,22 @@ const UjiAksesReports = () => {
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={exportCsv}
+            disabled={questionsLoading}
             className="px-3 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
           >
             Export CSV
           </button>
           <button
             onClick={exportXlsx}
+            disabled={questionsLoading}
             className="px-3 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
           >
             Export Excel
           </button>
           <button
             onClick={exportPdf}
-            className="px-3 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-sm"
+            disabled={questionsLoading}
+            className="px-3 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-sm disabled:opacity-50"
           >
             Export PDF
           </button>
