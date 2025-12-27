@@ -330,11 +330,11 @@ const HistoryLog = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <p className="text-sm text-slate-500">Riwayat pengiriman</p>
           <h1 className="text-2xl font-bold text-slate-900">History Log</h1>
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex flex-wrap items-center gap-2 mt-2">
             <span
               className={`px-3 py-1 rounded-full text-xs font-semibold ${
                 user?.role === 'admin'
@@ -359,106 +359,115 @@ const HistoryLog = () => {
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={fetchLogs}
-            className="px-4 py-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
+            className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-semibold"
           >
             Muat Ulang
           </button>
           <button
             onClick={exportCsv}
-            className="px-4 py-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
+            className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-semibold"
           >
             Export CSV
           </button>
           <button
             onClick={exportXlsx}
-            className="px-4 py-3 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
+            className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-semibold"
           >
             Export Excel
           </button>
           <button
             onClick={exportPdf}
-            className="px-4 py-3 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+            className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 text-sm font-semibold"
           >
             Export PDF
           </button>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari target/kategori/message id"
-            className="px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-soft p-4 space-y-3">
-        <div className="grid grid-cols-1 lg:grid-cols-[2fr,1fr] gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-600">Status Email:</span>
-              <div className="flex rounded-xl border border-slate-200 overflow-hidden">
-                {['all', 'success', 'failed'].map((opt) => (
-                  <button
-                    key={opt}
-                    onClick={() => setStatusFilter(opt)}
-                    className={`px-3 py-2 text-sm font-semibold ${
-                      statusFilter === opt ? 'bg-primary text-white' : 'text-slate-700'
-                    }`}
-                  >
-                    {opt === 'all' ? 'Semua' : opt}
-                  </button>
-                ))}
-              </div>
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-soft p-5 space-y-4">
+        <div className="grid grid-cols-1 xl:grid-cols-[2.2fr,1fr] gap-4">
+          <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4 space-y-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500 font-semibold">Filter</p>
+              <h3 className="text-lg font-bold text-slate-900">Atur tampilan log</h3>
             </div>
-            {user?.role === 'admin' && (
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-600">Kepemilikan:</span>
-                <div className="flex rounded-xl border border-slate-200 overflow-hidden">
-                  {[
-                    { key: 'all', label: 'Semua user' },
-                    { key: 'mine', label: 'Log saya' }
-                  ].map((opt) => (
+                <span className="text-sm text-slate-600">Status Email</span>
+                <div className="flex rounded-xl border border-slate-200 overflow-hidden bg-white">
+                  {['all', 'success', 'failed'].map((opt) => (
                     <button
-                      key={opt.key}
-                      onClick={() => setOwnerFilter(opt.key)}
+                      key={opt}
+                      onClick={() => setStatusFilter(opt)}
                       className={`px-3 py-2 text-sm font-semibold ${
-                        ownerFilter === opt.key ? 'bg-secondary text-white' : 'text-slate-700'
+                        statusFilter === opt ? 'bg-primary text-white' : 'text-slate-700'
                       }`}
                     >
-                      {opt.label}
+                      {opt === 'all' ? 'Semua' : opt}
                     </button>
                   ))}
                 </div>
               </div>
-            )}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-600">Kategori:</span>
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-slate-200 text-sm"
-              >
-                <option value="all">Semua kategori</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
+              {user?.role === 'admin' && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-600">Kepemilikan</span>
+                  <div className="flex rounded-xl border border-slate-200 overflow-hidden bg-white">
+                    {[
+                      { key: 'all', label: 'Semua user' },
+                      { key: 'mine', label: 'Log saya' }
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setOwnerFilter(opt.key)}
+                        className={`px-3 py-2 text-sm font-semibold ${
+                          ownerFilter === opt.key ? 'bg-secondary text-white' : 'text-slate-700'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600">Kategori</span>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="px-3 py-2 rounded-xl border border-slate-200 text-sm bg-white"
+                >
+                  <option value="all">Semua kategori</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-[auto,1fr] gap-2 items-center">
+              <span className="text-sm text-slate-600">Cari</span>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Target, kategori, message id"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+              />
             </div>
             {infoMessage && (
-              <span className="text-sm text-primary font-semibold">{infoMessage}</span>
+              <div className="text-sm text-primary font-semibold">{infoMessage}</div>
             )}
           </div>
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-700">
-            <div className="text-xs uppercase tracking-[0.08em] text-slate-500 font-semibold mb-1">Timeline singkat</div>
-            <div className="space-y-2 max-h-36 overflow-auto">
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 text-sm text-slate-700">
+            <div className="text-xs uppercase tracking-[0.2em] text-slate-500 font-semibold mb-2">Timeline singkat</div>
+            <div className="space-y-2 max-h-44 overflow-auto">
               {filteredLogs.slice(0, 6).map((item) => (
                 <div key={item.id} className="flex items-start gap-2">
                   <div
-                    className={`mt-0.5 w-2 h-2 rounded-full ${
+                    className={`mt-1 w-2 h-2 rounded-full ${
                       item.status === 'success' ? 'bg-emerald-500' : 'bg-rose-500'
                     }`}
                   />
@@ -475,10 +484,6 @@ const HistoryLog = () => {
               {filteredLogs.length === 0 && <div className="text-xs text-slate-500">Belum ada log sesuai filter.</div>}
             </div>
           </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          
         </div>
 
         <div className="overflow-x-auto">
