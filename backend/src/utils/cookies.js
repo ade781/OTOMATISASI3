@@ -1,4 +1,4 @@
-export function setRefreshCookie(res, refreshToken) {
+export const setRefreshCookie = (res, refreshToken) => {
   const isProd = process.env.NODE_ENV === "production";
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
@@ -9,7 +9,7 @@ export function setRefreshCookie(res, refreshToken) {
   });
 }
 
-export function setAccessCookie(res, accessToken) {
+export const setAccessCookie = (res, accessToken) => {
   const isProd = process.env.NODE_ENV === "production";
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
@@ -20,7 +20,7 @@ export function setAccessCookie(res, accessToken) {
   });
 }
 
-export function clearRefreshCookie(res) {
+export const clearRefreshCookie = (res) => {
   const isProd = process.env.NODE_ENV === "production";
   res.clearCookie("refreshToken", {
     httpOnly: true,
@@ -30,7 +30,7 @@ export function clearRefreshCookie(res) {
   });
 }
 
-export function clearAccessCookie(res) {
+export const clearAccessCookie = (res) => {
   const isProd = process.env.NODE_ENV === "production";
   res.clearCookie("accessToken", {
     httpOnly: true,
