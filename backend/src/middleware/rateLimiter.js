@@ -4,7 +4,7 @@ import rateLimit from 'express-rate-limit';
  //Membatasi 5 percobaan login per 15 menit per IP
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 menit
-  max: 5, // maksimal 5 percobaan login
+  limit: 5, // maksimal 5 percobaan login
   message: {
     success: false,
     message: 'Terlalu banyak percobaan login. Silakan coba lagi dalam 15 menit.'
@@ -25,7 +25,7 @@ export const loginLimiter = rateLimit({
  //Membatasi 100 request per 15 menit per IP
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 menit
-  max: 100, // maksimal 100 request
+  limit: 100, // maksimal 100 request
   message: {
     success: false,
     message: 'Terlalu banyak request dari IP ini. Silakan coba lagi nanti.'

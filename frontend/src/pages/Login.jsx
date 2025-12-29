@@ -1,22 +1,31 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import TurnstileWidget from '../components/TurnstileWidget';
 
 const Login = () => {
   const { login, loading } = useAuth();
+  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!turnstileToken) return alert("Selesaikan Turnstile dulu.");
     setError('');
-    const result = await login(username, password);
+    const result = await login(username, password, turnstileToken);
     if (result.success) {
       navigate('/dashboard');
     } else {
       setError(result.message || 'Login gagal');
+      // kosongkan token dan reset widget agar user bisa verifikasi ulang
+      setTurnstileToken("");
+      turnstileRef.current?.reset();
     }
   };
 
@@ -79,6 +88,7 @@ const Login = () => {
                 placeholder="********"
               />
             </div>
+            <TurnstileWidget ref={turnstileRef} siteKey={siteKey} onToken={setTurnstileToken} />
             {error && <div className="text-sm text-rose-500">{error}</div>}
             <button
               type="submit"

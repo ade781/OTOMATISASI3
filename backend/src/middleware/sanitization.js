@@ -8,7 +8,7 @@ const DOMPurify = createDOMPurify(window);
 /**
  * Sanitize single input
  */
-export function sanitizeInput(input) {
+export const sanitizeInput = (input) => {
   if (typeof input !== 'string') return input;
   
   // Remove all HTML tags
@@ -27,7 +27,7 @@ export function sanitizeInput(input) {
 /**
  * Sanitize object recursively
  */
-export function sanitizeObject(obj) {
+export const sanitizeObject = (obj) => {
   if (!obj || typeof obj !== 'object') return obj;
   
   const sanitized = Array.isArray(obj) ? [] : {};

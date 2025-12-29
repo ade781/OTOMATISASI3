@@ -29,10 +29,13 @@ export const AuthProvider = ({ children }) => {
     restoreSession();
   }, []);
 
-  const login = async (username, password) => {
+  const login = async (username, password, turnstileToken) => {
     setLoading(true);
     try {
-      const response = await api.post('/auth/login', { username, password });
+      if (!turnstileToken) {
+        return { success: false, message: "Selesaikan Turnstile terlebih dahulu" };
+      }
+      const response = await api.post('/auth/login', { username, password, turnstileToken });
 
       const userInfo = {
         id: response.data.user.id,
