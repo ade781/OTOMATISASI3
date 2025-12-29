@@ -2,26 +2,24 @@ import jwt from "jsonwebtoken";
 
 /**
  * Middleware untuk extract informasi user dari token untuk keperluan logging.
- * Berbeda dengan verifyToken, middleware ini TIDAK memblock request jika token tidak valid/tidak ada.
- * Hanya mencoba mendecode token dan menyimpan info user di req.user untuk logging.
+ * Tidak memblokir request jika token tidak valid/tidak ada.
+ * Catatan: untuk logging cukup decode (lebih ringan), bukan verify.
  */
 export const extractUserForLogging = (req, res, next) => {
-  const token = req.cookies.accessToken;
+  const token = req.cookies?.accessToken;
 
-  if (!token) {
-    // Tidak ada token, lanjutkan tanpa set req.user
-    return next();
-  }
+  if (!token) return next();
 
   try {
-    // Coba decode token
-    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-    // Set req.user untuk keperluan logging
-    req.user = decoded;
-  } catch (err) {
-    // Token tidak valid, tapi tetap lanjutkan (jangan block request)
-    // req.user tetap undefined
+    const decoded = jwt.decode(token);
+
+    // Pastikan bentuk decoded sesuai (object)
+    if (decoded && typeof decoded === "object") {
+      req.user = decoded;
+    }
+  } catch (_) {
+    // ignore: tetap lanjut tanpa req.user
   }
 
-  next();
+  return next();
 };
