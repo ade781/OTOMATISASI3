@@ -6,19 +6,27 @@ import logger from '../config/logger.js';
 export const requestLogger = (req, res, next) => {
   const startTime = Date.now();
   
-  // Ambil informasi user jika ada
-  const userId = req.user?.id || 'anonymous';
-  const username = req.user?.username || 'anonymous';
+  // Ambil informasi user jika ada (sudah di-extract oleh extractUserForLogging middleware)
+  const userId = req.user?.id;
+  const username = req.user?.username;
   
   // Log request yang masuk
-  logger.http('Incoming request', {
+  const logData = {
     method: req.method,
     url: req.originalUrl,
     ip: req.ip,
-    userId,
-    username,
     userAgent: req.get('user-agent'),
-  });
+  };
+  
+  // Hanya tambahkan userId dan username jika ada
+  if (userId) {
+    logData.userId = userId;
+  }
+  if (username) {
+    logData.username = username;
+  }
+  
+  logger.http('Incoming request', logData);
 
   // Override res.json untuk log response
   const originalJson = res.json.bind(res);
@@ -26,14 +34,22 @@ export const requestLogger = (req, res, next) => {
     const duration = Date.now() - startTime;
     
     // Log response
-    logger.http('Request completed', {
+    const logData = {
       method: req.method,
       url: req.originalUrl,
       statusCode: res.statusCode,
       duration: `${duration}ms`,
-      userId,
-      username,
-    });
+    };
+    
+    // Hanya tambahkan userId dan username jika ada
+    if (userId) {
+      logData.userId = userId;
+    }
+    if (username) {
+      logData.username = username;
+    }
+    
+    logger.http('Request completed', logData);
 
     return originalJson(data);
   };
@@ -43,14 +59,22 @@ export const requestLogger = (req, res, next) => {
     const duration = Date.now() - startTime;
     
     if (res.statusCode >= 400) {
-      logger.warn('Request failed', {
+      const logData = {
         method: req.method,
         url: req.originalUrl,
         statusCode: res.statusCode,
         duration: `${duration}ms`,
-        userId,
-        username,
-      });
+      };
+      
+      // Hanya tambahkan userId dan username jika ada
+      if (userId) {
+        logData.userId = userId;
+      }
+      if (username) {
+        logData.username = username;
+      }
+      
+      logger.warn('Request failed', logData);
     }
   });
 
@@ -61,19 +85,27 @@ export const requestLogger = (req, res, next) => {
  * Middleware untuk log error
  */
 export const errorLogger = (err, req, res, next) => {
-  const userId = req.user?.id || 'anonymous';
-  const username = req.user?.username || 'anonymous';
+  const userId = req.user?.id;
+  const username = req.user?.username;
 
-  logger.error('Error occurred', {
+  const logData = {
     method: req.method,
     url: req.originalUrl,
     error: err.message,
     stack: err.stack,
     statusCode: err.statusCode || 500,
-    userId,
-    username,
     ip: req.ip,
-  });
+  };
+  
+  // Hanya tambahkan userId dan username jika ada
+  if (userId) {
+    logData.userId = userId;
+  }
+  if (username) {
+    logData.username = username;
+  }
+
+  logger.error('Error occurred', logData);
 
   next(err);
 };
