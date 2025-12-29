@@ -9,11 +9,11 @@ import {
   deleteAllQuestions,
   resetQuestions
 } from '../controllers/ujiAksesQuestionController.js';
+import { requireCsrfForUnsafeMethods } from '../middleware/requireCsrf.js';
 
 const router = express.Router();
 
-router.use(verifyToken);
-
+router.use(verifyToken, requireCsrfForUnsafeMethods);
 // Public endpoints (all authenticated users)
 router.get('/', listQuestions);
 

@@ -34,25 +34,54 @@ const PORT = process.env.PORT || 5000;
 // __dirname replacement untuk ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// Catatan: untuk cookie auth, biasanya perlu konfigurasi cors lebih spesifik (origin + credentials).
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", process.env.CLIENT_URL || 'http://localhost:5173'], // Allow SSE from frontend
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"],
+// Catatan: untuk cookie auth, biasanya perlu konfigurasi cors lebih spesifik (origin + credentials)
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        defaultSrc: ["'self'"],
+
+        // Turnstile membutuhkan script dari challenges.cloudflare.com
+        scriptSrc: [
+          "'self'",
+          "https://challenges.cloudflare.com",
+        ],
+
+        // Inline style sering dibutuhkan; bisa dikencangkan nanti
+        styleSrc: ["'self'", "'unsafe-inline'"],
+
+        imgSrc: ["'self'", "data:", "https:"],
+
+        // Turnstile menggunakan iframe
+        frameSrc: ["'self'", "https://challenges.cloudflare.com"],
+
+        // Turnstile melakukan request verifikasi client-side (dan mungkin endpoint lain)
+        connectSrc: [
+          "'self'",
+          "https://challenges.cloudflare.com",
+          // jika FE dan BE beda origin, tambahkan API domain Anda di sini (bukan CLIENT_URL FE)
+          // "https://api.example.com",
+        ],
+
+        fontSrc: ["'self'", "data:", "https:"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+
+        // jika Anda tidak butuh embed pihak ketiga, ini bagus
+        frameAncestors: ["'none'"],
+
+        // upgrade insecure jika Anda full https (opsional)
+        // upgradeInsecureRequests: [],
+      },
     },
-  },
-  xssFilter: true,
-  noSniff: true,
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-}));
+
+    // Ini sudah default di Helmet modern, tapi boleh eksplisit
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  })
+);
+
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173', // URL frontend Vite
   credentials: true // WAJIB untuk cookie

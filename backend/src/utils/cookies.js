@@ -1,41 +1,55 @@
+const isProd = process.env.NODE_ENV === "production";
+
+const COOKIE_CONFIG = {
+  httpOnly: true,
+  secure: isProd,
+  sameSite: isProd ? "strict" : "lax",
+};
+
 export const setRefreshCookie = (res, refreshToken) => {
-  const isProd = process.env.NODE_ENV === "production";
   res.cookie("refreshToken", refreshToken, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "strict" : "lax",
+    ...COOKIE_CONFIG,
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/auth",
   });
-}
+};
 
 export const setAccessCookie = (res, accessToken) => {
-  const isProd = process.env.NODE_ENV === "production";
   res.cookie("accessToken", accessToken, {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "lax" : "lax",
+    ...COOKIE_CONFIG,
     maxAge: 15 * 60 * 1000,
     path: "/",
   });
-}
+};
 
 export const clearRefreshCookie = (res) => {
-  const isProd = process.env.NODE_ENV === "production";
   res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? "strict" : "lax",
+    ...COOKIE_CONFIG,
     path: "/auth",
   });
-}
+};
 
 export const clearAccessCookie = (res) => {
-  const isProd = process.env.NODE_ENV === "production";
   res.clearCookie("accessToken", {
-    httpOnly: true,
+    ...COOKIE_CONFIG,
+    path: "/",
+  });
+};
+
+export const setCsrfCookie = (res, csrfToken) => {
+  res.cookie("csrfToken", csrfToken, {
+    httpOnly: false,
+    secure: isProd,
+    sameSite: isProd ? "strict" : "lax",
+    maxAge: 2 * 60 * 60 * 1000,
+    path: "/",
+  });
+};
+
+export const clearCsrfCookie = (res) => {
+  res.clearCookie("csrfToken", {
     secure: isProd,
     sameSite: isProd ? "strict" : "lax",
     path: "/",
   });
-}
+};

@@ -2,11 +2,11 @@ import express from 'express';
 import { createUser, listUsers, getMe, deleteUser, deleteUsersBulk, resetUserPassword, updateRole, importUsers, updateMyPassword } from '../controllers/userController.js';
 import { verifyToken } from '../middleware/verifyToken.js';
 import { checkRole } from '../middleware/checkRole.js';
+import { requireCsrfForUnsafeMethods } from '../middleware/requireCsrf.js';
 
 const router = express.Router();
 
-router.use(verifyToken);
-
+router.use(verifyToken, requireCsrfForUnsafeMethods);
 // User endpoints
 router.get('/me', getMe);
 router.patch('/me/password', updateMyPassword);

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
+import api, { updateCsrfToken, clearCsrfToken } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -20,8 +20,6 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-
-      // HAPUS call explicit, biarkan interceptor handle
       setUser(JSON.parse(savedUser));
       setIsInitializing(false);
     };
@@ -35,7 +33,16 @@ export const AuthProvider = ({ children }) => {
       if (!turnstileToken) {
         return { success: false, message: "Selesaikan Turnstile terlebih dahulu" };
       }
-      const response = await api.post('/auth/login', { username, password, turnstileToken });
+      
+      const response = await api.post('/auth/login', { 
+        username, 
+        password, 
+        turnstileToken 
+      });
+
+      if (response.data?.csrfToken) {
+        updateCsrfToken(response.data.csrfToken);
+      }
 
       const userInfo = {
         id: response.data.user.id,
@@ -62,8 +69,9 @@ export const AuthProvider = ({ children }) => {
     try {
       await api.post('/auth/logout');
     } catch (err) {
-      // Silently handle logout errors
+      console.error('Logout error:', err);
     } finally {
+      clearCsrfToken();
       setUser(null);
       localStorage.removeItem('user');
       setLoading(false);
