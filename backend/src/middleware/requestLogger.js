@@ -1,79 +1,65 @@
-import logger from '../config/logger.js';
+import logger from "../config/logger.js";
 
 /**
- * Middleware untuk log setiap HTTP request
+ * Middleware untuk log setiap HTTP request (incoming + completed/failed).
+ * Menggunakan res.on('finish') agar mencakup semua jenis response.
  */
 export const requestLogger = (req, res, next) => {
   const startTime = Date.now();
-  
-  // Ambil informasi user jika ada
-  const userId = req.user?.id || 'anonymous';
-  const username = req.user?.username || 'anonymous';
-  
-  // Log request yang masuk
-  logger.http('Incoming request', {
+
+  // Informasi user jika ada (di-set oleh extractUserForLogging)
+  const userId = req.user?.id;
+  const username = req.user?.username;
+
+  const base = {
     method: req.method,
     url: req.originalUrl,
     ip: req.ip,
-    userId,
-    username,
-    userAgent: req.get('user-agent'),
-  });
+    userAgent: req.get("user-agent"),
+    ...(userId ? { userId } : {}),
+    ...(username ? { username } : {}),
+  };
 
-  // Override res.json untuk log response
-  const originalJson = res.json.bind(res);
-  res.json = function (data) {
+  logger.http("Incoming request", base);
+
+  res.on("finish", () => {
     const duration = Date.now() - startTime;
-    
-    // Log response
-    logger.http('Request completed', {
+
+    const done = {
       method: req.method,
       url: req.originalUrl,
       statusCode: res.statusCode,
       duration: `${duration}ms`,
-      userId,
-      username,
-    });
+      ...(userId ? { userId } : {}),
+      ...(username ? { username } : {}),
+    };
 
-    return originalJson(data);
-  };
-
-  // Tangkap error jika ada
-  res.on('finish', () => {
-    const duration = Date.now() - startTime;
-    
-    if (res.statusCode >= 400) {
-      logger.warn('Request failed', {
-        method: req.method,
-        url: req.originalUrl,
-        statusCode: res.statusCode,
-        duration: `${duration}ms`,
-        userId,
-        username,
-      });
-    }
+    if (res.statusCode >= 400) logger.warn("Request failed", done);
+    else logger.http("Request completed", done);
   });
 
-  next();
+  return next();
 };
 
 /**
- * Middleware untuk log error
+ * Middleware untuk log error (gunakan setelah routes).
  */
 export const errorLogger = (err, req, res, next) => {
-  const userId = req.user?.id || 'anonymous';
-  const username = req.user?.username || 'anonymous';
+  const userId = req.user?.id;
+  const username = req.user?.username;
 
-  logger.error('Error occurred', {
+  const logData = {
     method: req.method,
     url: req.originalUrl,
-    error: err.message,
-    stack: err.stack,
-    statusCode: err.statusCode || 500,
-    userId,
-    username,
+    error: err?.message,
+    stack: err?.stack,
+    statusCode: err?.statusCode || 500,
     ip: req.ip,
-  });
+    ...(userId ? { userId } : {}),
+    ...(username ? { username } : {}),
+  };
 
-  next(err);
+  logger.error("Error occurred", logData);
+
+  return next(err);
 };

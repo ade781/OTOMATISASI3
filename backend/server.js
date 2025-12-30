@@ -26,6 +26,7 @@ import helmet from "helmet";
 import { sanitizeMiddleware, sanitizeQueryParams } from "./src/middleware/sanitization.js";
 import logger from "./src/config/logger.js";
 import { requestLogger, errorLogger } from "./src/middleware/requestLogger.js";
+import { extractUserForLogging } from "./src/middleware/extractUserForLogging.js";
 
 dotenv.config();
 
@@ -92,6 +93,8 @@ app.use(
   })
 );
 app.use(cookieParser());
+// Extract user info dari token untuk logging (tidak memblock request)
+app.use(extractUserForLogging);
 // log setiap request
 app.use(requestLogger);
 
