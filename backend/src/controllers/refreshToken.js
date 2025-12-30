@@ -1,31 +1,20 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user.js";
-import { 
-  generateRefreshToken, 
-  hashRefreshToken,
-  generateCsrfToken 
-} from "../utils/tokens.js";
+import { generateRefreshToken, hashRefreshToken } from "../utils/tokens.js";
 import {
   setRefreshCookie,
   clearRefreshCookie,
   setAccessCookie,
   clearAccessCookie,
-  setCsrfCookie,
   clearCsrfCookie,
 } from "../utils/cookies.js";
 
 export const refreshToken = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
-    
-    if (!refreshToken) {
-      clearAllAuthCookies(res);
-      return res.status(401).json({ 
-        status: 'error',
-        message: 'No refresh token provided' 
-      });
-    }
 
+    clearRefreshCookie(res);
+    clearAccessCookie(res);
     const refreshHash = hashRefreshToken(refreshToken);
     const user = await User.findOne({
       where: { refresh_token_hash: refreshHash },
@@ -33,22 +22,25 @@ export const refreshToken = async (req, res) => {
 
     if (!user) {
       clearAllAuthCookies(res);
-      return res.status(403).json({ 
-        status: 'error',
-        message: 'Invalid refresh token' 
+      return res.status(403).json({
+        status: "error",
+        message: "Invalid refresh token",
       });
     }
 
-    if (!user.refresh_expires_at || new Date(user.refresh_expires_at) <= new Date()) {
+    if (
+      !user.refresh_expires_at ||
+      new Date(user.refresh_expires_at) <= new Date()
+    ) {
       await user.update({
         refresh_token_hash: null,
         refresh_expires_at: null,
         refresh_rotated_at: new Date(),
       });
       clearAllAuthCookies(res);
-      return res.status(403).json({ 
-        status: 'error',
-        message: 'Refresh token expired' 
+      return res.status(403).json({
+        status: "error",
+        message: "Refresh token expired",
       });
     }
 
@@ -68,22 +60,18 @@ export const refreshToken = async (req, res) => {
       refresh_rotated_at: new Date(),
     });
 
-    const csrfToken = await generateCsrfToken();
-
     setRefreshCookie(res, newRefreshToken);
     setAccessCookie(res, accessToken);
-    setCsrfCookie(res, csrfToken);
 
-    return res.json({ 
+    return res.json({
       success: true,
-      csrfToken 
     });
   } catch (error) {
-    console.error('Refresh token error:', error);
+    console.error("Refresh token error:", error);
     clearAllAuthCookies(res);
-    return res.status(500).json({ 
-      status: 'error',
-      message: 'Token refresh failed' 
+    return res.status(500).json({
+      status: "error",
+      message: "Token refresh failed",
     });
   }
 };

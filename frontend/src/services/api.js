@@ -15,7 +15,7 @@ const fetchCsrfToken = async () => {
     csrfTokenCache = data?.csrfToken || "";
     return csrfTokenCache;
   } catch (error) {
-    console.error('Failed to fetch CSRF token:', error);
+    console.error("Failed to fetch CSRF token:", error);
     csrfTokenCache = "";
     return "";
   }
@@ -29,7 +29,7 @@ const getCsrfToken = async () => {
 };
 
 const updateCsrfToken = (token) => {
-  if (token && typeof token === 'string') {
+  if (token && typeof token === "string") {
     csrfTokenCache = token;
   }
 };
@@ -42,8 +42,9 @@ api.interceptors.request.use(
   async (config) => {
     const method = (config.method || "GET").toUpperCase();
     const isUnsafe = !["GET", "HEAD", "OPTIONS"].includes(method);
-
-    if (isUnsafe) {
+    // Pengecualian untuk endpoint login - tidak perlu CSRF token
+    const isLoginEndpoint = config.url?.includes("/auth/login");
+    if (isUnsafe && !isLoginEndpoint) {
       const token = await getCsrfToken();
       config.headers = config.headers || {};
       config.headers["X-CSRF-Token"] = token;
@@ -77,8 +78,8 @@ api.interceptors.response.use(
 
     if (error.response?.status === 403) {
       const errorCode = error.response?.data?.code;
-      
-      if (errorCode === 'CSRF_MISSING' || errorCode === 'CSRF_MISMATCH') {
+
+      if (errorCode === "CSRF_MISSING" || errorCode === "CSRF_MISMATCH") {
         try {
           await fetchCsrfToken();
           return api(originalRequest);
@@ -104,11 +105,11 @@ api.interceptors.response.use(
 
       try {
         const { data } = await api.post("/auth/refresh", {});
-        
+
         if (data?.csrfToken) {
           updateCsrfToken(data.csrfToken);
         }
-        
+
         processQueue(null);
         isRefreshing = false;
         return api(originalRequest);

@@ -14,7 +14,7 @@ const router = express.Router();
 router.post('/login', requireTurnstile({bodyField: "turnstileToken"}), loginLimiter, login);
 router.get('/csrf', csrf);
 router.post('/logout', requireCsrfForUnsafeMethods, logout);
-router.post('/refresh', requireCsrfForUnsafeMethods, refreshToken);
+router.post('/refresh', requireCsrfForUnsafeMethods,refreshToken);
 router.post('/register', verifyToken, checkRole('admin'), createUser);
 
 export default router;

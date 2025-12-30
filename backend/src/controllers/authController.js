@@ -17,6 +17,14 @@ import {
 
 const csrf = async (req, res) => {
   try {
+    // Tolak permintaan CSRF jika user belum terautentikasi
+    if (!req.user && !req.cookies?.refreshToken && !req.cookies?.accessToken) {
+      return res.status(401).json({ 
+        status: 'error', 
+        message: 'Unauthorized' 
+      });
+    }
+
     // Jika cookie csrfToken sudah ada, kembalikan yang sama (jangan rotate)
     const existing = req.cookies?.csrfToken;
     if (existing) {
