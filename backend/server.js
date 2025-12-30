@@ -61,6 +61,7 @@ app.use(
         connectSrc: [
           "'self'",
           "https://challenges.cloudflare.com",
+          process.env.CLIENT_URL,
           // jika FE dan BE beda origin, tambahkan API domain Anda di sini (bukan CLIENT_URL FE)
           // "https://api.example.com",
         ],
