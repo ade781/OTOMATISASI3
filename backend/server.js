@@ -81,6 +81,8 @@ app.use(
 
     // Ini sudah default di Helmet modern, tapi boleh eksplisit
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    // Allow assets (uploads) to be loaded from different origin (frontend dev server)
+    crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
 
@@ -121,7 +123,7 @@ app.use("/holidays", holidayRoutes);
 app.use("/news", newsRoutes);
 
 // Static files untuk bukti dukung laporan uji akses
-app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Modul Laporan Uji Akses
 app.use("/api/reports", ujiAksesReportRoutes);

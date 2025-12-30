@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import { Op } from "sequelize";
 import {
   UjiAksesReport,
@@ -19,6 +20,9 @@ import {
 const VALID_STATUSES = ["draft", "submitted"];
 const SORT_FIELDS = ["total_skor", "createdAt"];
 const DEFAULT_SORT = { field: "createdAt", direction: "DESC" };
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Helper functions
 const ensureUploadsDir = (dir) => {
