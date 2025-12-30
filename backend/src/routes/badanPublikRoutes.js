@@ -11,10 +11,11 @@ import {
 } from '../controllers/badanPublikController.js';
 import { verifyToken } from '../middleware/verifyToken.js';
 import { checkRole } from '../middleware/checkRole.js';
+import { requireCsrfForUnsafeMethods } from '../middleware/requireCsrf.js';
 
 const router = express.Router();
 
-router.use(verifyToken);
+router.use(verifyToken, requireCsrfForUnsafeMethods);
 
 // Public endpoints (all authenticated users)
 router.get('/', listBadanPublik);

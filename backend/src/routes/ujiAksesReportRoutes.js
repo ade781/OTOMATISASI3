@@ -11,6 +11,7 @@ import {
   uploadEvidence,
   ensureReportUploadDir
 } from '../controllers/ujiAksesReportController.js';
+import { requireCsrfForUnsafeMethods } from '../middleware/requireCsrf.js';
 
 const router = express.Router();
 
@@ -57,7 +58,7 @@ const upload = multer({
 });
 
 // Apply authentication to all routes
-router.use(verifyToken);
+router.use(verifyToken, requireCsrfForUnsafeMethods);
 
 // Report endpoints
 router.get('/me', listMyReports);

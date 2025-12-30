@@ -7,10 +7,11 @@ import {
   deleteEmailLogsBulk
 } from '../controllers/emailController.js';
 import { verifyToken } from '../middleware/verifyToken.js';
+import { requireCsrfForUnsafeMethods } from '../middleware/requireCsrf.js';
 
 const router = express.Router();
 
-router.use(verifyToken);
+router.use(verifyToken, requireCsrfForUnsafeMethods);
 
 router.get('/logs', getEmailLogs);
 router.get('/stream', streamEmailLogs);
