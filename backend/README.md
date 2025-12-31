@@ -1,250 +1,849 @@
-# Otomatisasi Backend API
+# Dokumentasi API Auth
 
-Semua endpoint di bawah menggunakan base URL server backend Anda (contoh: `http://localhost:5000`). Kecuali disebutkan lain, semua endpoint (selain login/refresh/logout) membutuhkan header `Authorization: Bearer <accessToken>` dari hasil login.
+Base path: `/auth`
 
-Token akses (`accessToken`) didapat dari `POST /auth/login`. Refresh token disimpan sebagai cookie `refreshToken` (httpOnly) oleh server dan digunakan pada `POST /auth/refresh` untuk meminta token akses baru.
+## POST /auth/login
 
-Catatan role dan akses:
-- `user`: akses terbatas sesuai penugasan dan data miliknya.
-- `admin`: akses penuh ke sebagian besar resource.
+- Deskripsi: Autentikasi user dan set cookie `accessToken`, `refreshToken`, `csrfToken`.
+- Auth: tidak perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request (JSON):
+  - username: string
+  - password: string
+  - turnstileToken: string
+- Response (JSON):
+  - status: "Success" | "Failed"
+  - message: string
+  - user: object (tanpa password dan token)
+  - csrfToken: string
+- Cookies di-set: `accessToken`, `refreshToken`, `csrfToken`
 
-## Autentikasi
+## GET /auth/csrf
 
-- POST: `/auth/login`
-  - Body: `{ "username": "string", "password": "string" }`
-  - Respon 200: `{ status, message, safeUserData, accessToken }` dan set-cookie `refreshToken`.
-  - Error: 400 kredensial salah.
+- Deskripsi: Mengambil token CSRF dan set cookie `csrfToken` jika belum ada.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - csrfToken: string
+- Cookies di-set: `csrfToken` (jika belum ada)
 
-- POST: `/auth/logout`
-  - Menghapus cookie `refreshToken`. Respon 200/204.
+## POST /auth/logout
 
-- POST: `/auth/refresh`
-  - Menggunakan cookie `refreshToken`. Respon 200: `{ accessToken }` jika valid.
+- Deskripsi: Logout dan hapus cookie autentikasi (akses, refresh, csrf token).
+- Auth: tidak perlu.
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - status: "success" | "error"
+  - message: string
+- Cookies dihapus: `accessToken`, `refreshToken`, `csrfToken`
 
-- POST: `/auth/register` (admin)
-  - Header: `Authorization`
-  - Body: `{ "username": "string", "password": "string", "role": "user|admin" }`
-  - Respon 201: `{ msg: "Register Berhasil" }`
+## POST /auth/refresh
 
-## Profil & Users
+- Deskripsi: Refresh akses (rotate refresh token) dan set cookie `accessToken` baru.
+- Auth: tidak perlu.(otomatis ambil cookies)
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - success: boolean
+- Cookies di-set: `accessToken`, `refreshToken` (baru)
 
-- GET: `/users/me`
-  - Header: `Authorization`
-  - Respon: `{ id, username, role, daily_quota, used_today, last_reset_date }`
+## POST /auth/register
 
-- GET: `/users` (admin)
-  - Respon: `[{ id, username, role, daily_quota, hasSmtp }]`
+- Deskripsi: Membuat user baru.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - username: string (wajib)
+  - password: string (wajib)
+  - role: "user" | "admin"
+  - group: string (opsional)
+  - nomer_hp: string (opsional)
+  - email: string (opsional)
+- Response (JSON):
+  - message: string
 
-- POST: `/users` (admin)
-  - Body: `{ username, password, role? }`
+# Dokumentasi API Config
 
-- PATCH: `/users/:id/password` (admin)
-  - Body: `{ password }`
+Base path: `/config`
 
-- PATCH: `/users/:id/role` (admin)
-  - Body: `{ role: "user|admin" }`
-  - Catatan: tidak boleh mengubah role diri sendiri.
+## GET /config/check
 
-- DELETE: `/users/:id` (admin)
-  - Menghapus user beserta penugasan, smtp, quota request, dan email log terkait.
+- Deskripsi: Mengecek apakah user sudah punya konfigurasi SMTP.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - hasConfig: boolean
 
-## Konfigurasi SMTP/IMAP
+## POST /config/smtp
 
-- POST: `/config/smtp`
-  - Header: `Authorization`
-  - Body: `{ email_address, app_password }`
-  - Respon: `{ message: "Konfigurasi SMTP tersimpan" }`
+- Deskripsi: Menyimpan email dan App Password SMTP untuk user.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request (JSON):
+  - email_address: string (wajib)
+  - app_password: string (wajib)
+- Response (JSON):
+  - message: string
 
-- POST: `/config/smtp/verify`
-  - Body opsional: `{ email_address, app_password }` (jika kosong, gunakan yang tersimpan)
-  - Respon 200 jika kredensial SMTP Gmail valid.
+## POST /config/smtp/verify
 
-- POST: `/config/imap/verify`
-  - Body: `{ email_address, app_password }`
-  - Verifikasi koneksi IMAP Gmail.
+- Deskripsi: Verifikasi kredensial SMTP.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request (JSON):
+  - email_address: string (opsional)
+  - app_password: string (opsional)
+- Response (JSON):
+  - message: string
 
-- GET: `/config/check`
-  - Respon: `{ hasConfig: boolean }`
+## POST /config/imap/verify
 
-## Badan Publik
+- Deskripsi: Verifikasi kredensial IMAP Gmail.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request (JSON):
+  - email_address: string (wajib)
+  - app_password: string (wajib)
+- Response (JSON):
+  - message: string
 
-Base path: `/badan-publik` (semua butuh `Authorization`)
+## POST /config/reset
 
-- GET: `/` 
-  - Admin: semua data. User: hanya yang ditugaskan.
+- Deskripsi: Reset database, menghapus semua data terkait (kecuali user admin).
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request: -
+- Response (JSON):
+  - message: string
+  - deleted: object
 
-- GET: `/:id`
+# Dokumentasi API Badan Publik
 
-- POST: `/` (admin)
-  - Body minimal: `{ nama_badan_publik, kategori, email?, website?, pertanyaan?, status? }`
-  - Validasi email unik bila ada.
+Base path: `/badan-publik`
 
-- PUT: `/:id` 
-  - Admin: boleh ubah semua kolom utama.
-  - User: hanya boleh koreksi `email`, `website`, `pertanyaan` untuk badan publik yang ditugaskan.
+## GET /badan-publik
 
-- DELETE: `/:id` (admin)
+- Deskripsi: Mengambil daftar badan publik.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - array of object BadanPublik:
+    - id, nama_badan_publik, kategori, email, website, pertanyaan, status, sent_count, createdAt, updatedAt
 
-- POST: `/import` (admin)
-  - Body: `{ records: Array<CSVRow|Object> }` dengan kolom fleksibel (`Nama`, `Kategori`, `Email`, dll)
-  - Dedup berdasarkan email (case-insensitive) dan skip yang sudah ada di DB.
+## GET /badan-publik/:id
 
-## Penugasan
+- Deskripsi: Mengambil detail satu badan publik.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - object BadanPublik
 
-Base path: `/assignments`
+## POST /badan-publik
 
-- GET: `/me` (user)
-  - Daftar badan publik yang ditugaskan ke user saat ini.
+- Deskripsi: Membuat data badan publik baru.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - nama_badan_publik: string (wajib)
+  - kategori: string (wajib)
+  - email: string (opsional, harus valid dan unik)
+  - website: string (opsional)
+  - pertanyaan: string (opsional)
+  - status: "belum dibalas" | "dibalas" | "selesai" (opsional)
+  - sent_count: number (opsional)
+- Response (JSON):
+  - object BadanPublik (terbuat)
 
-- GET: `/history/all` (admin)
-  - Histori perubahan penugasan (terbaru 100).
+## PUT /badan-publik/:id
 
-- GET: `/` (admin)
-  - Daftar penugasan unik (1 per badan publik, yang terbaru) termasuk detail user dan badan publik.
+- Deskripsi: Memperbarui data badan publik.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request (JSON):
+  - nama_badan_publik, kategori, email, website, pertanyaan, status, sent_count (opsional)
+- Response (JSON):
+  - object BadanPublik (terbarui)
 
-- GET: `/:userId` (admin)
-  - Semua penugasan untuk satu user.
+## DELETE /badan-publik/:id
 
-- POST: `/` (admin)
-  - Body: `{ user_id: number, badan_publik_ids: number[] }`
-  - Eksklusif: 1 badan publik hanya untuk 1 user (otomatis melepaskan dari user lain).
+- Deskripsi: Menghapus satu data badan publik.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request: -
+- Response (JSON):
+  - message: string
 
-## Email & Log
+## POST /badan-publik/bulk-delete
+
+- Deskripsi: Menghapus banyak data badan publik sekaligus.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - ids: number[] (wajib)
+  - force: boolean (opsional; jika true, juga menghapus data terkait)
+- Response (JSON):
+  - message: string
+  - deleted: number
+
+## POST /badan-publik/import
+
+- Deskripsi: Import daftar badan publik dari array records.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - records: array of object
+    - nama_badan_publik/nama, kategori, email, website, pertanyaan, status, thread_id (opsional)
+- Response (JSON):
+  - message: string
+
+## POST /badan-publik/import-assign
+
+- Deskripsi: Import badan publik dan otomatis penugasan ke user penguji.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - records: array of object
+    - nama_badan_publik/nama, kategori, email, website, pertanyaan (opsional)
+    - lembaga (opsional)
+    - nama_penguji, no_hp_penguji (opsional; jika ada, bisa dibuat user baru)
+    - email_penguji (opsional)
+- Response (JSON):
+  - message: string
+  - stats: object
+    - created: number
+    - skippedExisting: number
+    - skippedDuplicateFile: number
+    - createdUsers: number
+    - assigned: number
+    - skippedAssigned: number
+    - skippedNoUser: number
+
+# Dokumentasi API Email
 
 Base path: `/email`
 
-- POST: `/send`
-  - Body:
-    - `badan_publik_ids: number[]` (wajib)
-    - `subject` atau `subject_template`
-    - `body` atau `body_template` (HTML didukung; `\n` otomatis `<br/>`)
-    - `meta`: objek untuk variabel template, contoh: `{ pemohon, tujuan, tanggal, custom_fields: { ... } }`
-    - `attachments?`: `[{ filename, content(base64), encoding?="base64", contentType? }]`
-  - Batas lampiran total ~2MB. Validasi SMTP user dan kuota harian diterapkan.
-  - Respon: `{ message, results: [{ id, status: 'success'|'failed', reason? }] }`
+## GET /email/logs
 
-- GET: `/logs`
-  - Admin: semua log. User: hanya miliknya.
+- Deskripsi: Mengambil daftar riwayat pengiriman email.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - array of object EmailLog:
+    - id, user, badanPublik, subject, body, status, message_id, attachments_meta, sent_at, retry_of_id (opsional)
 
-- GET: `/stream` (SSE)
-  - Stream realtime log sesuai akses user.
+## GET /email/stream
 
-- POST: `/retry/:id`
-  - Ulangi pengiriman berdasarkan log tertentu (user hanya miliknya).
+- Deskripsi: Stream SSE untuk update realtime log email.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (SSE):
+  - event data: object EmailLog per update
 
-## Kuota Harian
+## POST /email/logs/bulk-delete
+
+- Deskripsi: Menghapus banyak log email sekaligus.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request (JSON):
+  - ids: number[] (wajib)
+- Response (JSON):
+  - message: string
+  - deleted: number
+
+## POST /email/send
+
+- Deskripsi: Mengirim email massal ke daftar badan publik.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - badan_publik_ids: number[] (wajib)
+  - subject: string (opsional)
+  - body: string (opsional)
+  - subject_template: string (opsional)
+  - body_template: string (opsional)
+  - meta: object (opsional)
+  - attachments: array of object (opsional)
+    - filename: string
+    - content: string (base64)
+    - contentType: string (opsional)
+- Response (JSON):
+  - message: string
+  - results: array of object
+    - id: number
+    - status: "success" | "failed"
+    - reason: string (opsional)
+
+## POST /email/retry/:id
+
+- Deskripsi: Mengulang pengiriman email berdasarkan log tertentu.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - message: string
+  - log: object EmailLog (baru)
+
+# Dokumentasi API Users
+
+Base path: `/users`
+
+## GET /users/me
+
+- Deskripsi: Mengambil informasi user saat ini.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - object User:
+    - id, username, role, daily_quota, used_today, last_reset_date, group, nomer_hp, email
+
+## PATCH /users/me/password
+
+- Deskripsi: Mengubah password sendiri.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request (JSON):
+  - currentPassword: string (wajib)
+  - newPassword: string (wajib)
+- Response (JSON):
+  - message: string
+
+## GET /users
+
+- Deskripsi: Mengambil daftar user.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: Admin.
+- Request: -
+- Response (JSON):
+  - array of object User:
+    - id, username, role, daily_quota, group, nomer_hp, email, hasSmtp
+
+## POST /users
+
+- Deskripsi: Membuat user baru.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - username: string (wajib)
+  - password: string (wajib)
+  - role: "user" | "admin"
+  - group: string (opsional)
+  - nomer_hp: string (opsional)
+  - email: string (opsional)
+- Response (JSON):
+  - message: string
+
+## POST /users/import
+
+- Deskripsi: Import user dari array records.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - records: array of object
+    - username: string (wajib)
+    - group: string (wajib)
+    - nomer_hp: string (wajib)
+    - email: string (wajib, valid)
+- Response (JSON):
+  - message: string
+
+## POST /users/bulk-delete
+
+- Deskripsi: Menghapus banyak user sekaligus.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - ids: number[] (wajib)
+- Response (JSON):
+  - message: string
+  - deleted: number
+  - skipped: number
+
+## PATCH /users/:id/password
+
+- Deskripsi: Reset password user tertentu.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - password: string (wajib) atau newPassword: string (wajib)
+- Response (JSON):
+  - message: string
+
+## PATCH /users/:id/role
+
+- Deskripsi: Mengubah role user.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - role: "user" | "admin" (wajib)
+- Response (JSON):
+  - message: string
+  - user: object
+    - id: number
+    - role: "user" | "admin"
+
+## DELETE /users/:id
+
+- Deskripsi: Menghapus satu user (bukan diri sendiri, bukan admin).
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request: -
+- Response (JSON):
+  - message: string
+
+# Dokumentasi API Assignments
+
+Base path: `/assignments`
+
+## GET /assignments/me
+
+- Deskripsi: Mengambil daftar penugasan milik user saat ini.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - array of object Assignment:
+    - id: number
+    - badan_publik_id: number
+    - badanPublik: object
+      - id, nama_badan_publik, kategori, email
+
+## GET /assignments
+
+- Deskripsi: Mengambil daftar penugasan terbaru per badan publik (admin).
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: Admin.
+- Request: -
+- Response (JSON):
+  - array of object Assignment:
+    - id: number
+    - user_id: number
+    - badan_publik_id: number
+    - user: object
+      - id, username, role
+    - badanPublik: object
+      - id, nama_badan_publik, kategori
+
+## GET /assignments/:userId
+
+- Deskripsi: Mengambil daftar penugasan untuk satu user (admin).
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: Admin.
+- Request: -
+- Response (JSON):
+  - array of object Assignment:
+    - id: number
+    - user_id: number
+    - badan_publik_id: number
+    - badanPublik: object
+      - id, nama_badan_publik, kategori
+
+## POST /assignments
+
+- Deskripsi: Menetapkan daftar badan publik ke satu user (menggantikan yang ada) (admin).
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - user_id: number (wajib)
+  - badan_publik_ids: number[] (wajib)
+- Response (JSON):
+  - message: string
+  - total: number
+
+# Dokumentasi API Quota
 
 Base path: `/quota`
 
-- GET: `/me`
-  - Respon: `{ daily_quota, used_today, remaining }`
+## GET /quota/me
 
-- POST: `/request` (user)
-  - Body: `{ requested_quota: number, reason?: string }`
-  - Membuat permintaan penambahan kuota (satu pending per user).
+- Deskripsi: Mengambil informasi kuota harian user saat ini.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - daily_quota: number
+  - used_today: number
+  - remaining: number
 
-- GET: `/my-requests` (user)
-  - Daftar permintaan kuota milik user.
+## GET /quota/my-requests
 
-- GET: `/requests` (admin)
-  - Daftar semua permintaan beserta user.
+- Deskripsi: Mengambil daftar permintaan kuota milik user saat ini.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - array of object QuotaRequest:
+    - id, user_id, requested_quota, reason, status, admin_note, responded_at, response_minutes, createdAt, updatedAt
 
-- PATCH: `/requests/:id` (admin)
-  - Body: `{ status: 'approved'|'rejected', admin_note?: string }`
-  - `approved`: menambah `daily_quota` user dan menyesuaikan pemakaian hari ini.
+## POST /quota/request
 
-- PATCH: `/user/:userId` (admin)
-  - Body: `{ daily_quota: number>0 }`
+- Deskripsi: Membuat permintaan penambahan kuota.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request (JSON):
+  - requested_quota: number (wajib)
+  - reason: string (opsional)
+- Response (JSON):
+  - message: string
+  - request: object QuotaRequest
 
-## Kalendari Libur
+## GET /quota/requests
+
+- Deskripsi: Mengambil semua permintaan kuota (admin).
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: Admin.
+- Request: -
+- Response (JSON):
+  - array of object QuotaRequest:
+    - id, user_id, requested_quota, reason, status, admin_note, responded_at, response_minutes, createdAt, updatedAt
+    - user: object
+      - username, role
+
+## PATCH /quota/requests/:id
+
+- Deskripsi: Menyetujui atau menolak permintaan kuota (admin).
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - status: "approved" | "rejected" (wajib)
+  - admin_note: string (opsional)
+- Response (JSON):
+  - message: string
+  - request: object QuotaRequest (terbarui)
+
+## PATCH /quota/user/:userId
+
+- Deskripsi: Mengatur kuota harian untuk user tertentu (admin).
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - daily_quota: number (wajib, > 0)
+- Response (JSON):
+  - message: string
+  - daily_quota: number
+
+# Dokumentasi API Holidays
 
 Base path: `/holidays`
 
-- GET: `/`
-  - Mengembalikan daftar libur yang akan datang (libur yang sudah lewat dibersihkan otomatis).
+## GET /holidays
 
-- POST: `/` (admin)
-  - Body: `{ date: 'YYYY-MM-DD', name: string }`
+- Deskripsi: Mengambil daftar libur.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - array of object Holiday:
+    - id, date (YYYY-MM-DD), name, createdAt, updatedAt
 
-- DELETE: `/:id` (admin)
+## POST /holidays
 
-## Berita KIP
+- Deskripsi: Menambah libur baru.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - date: string (YYYY-MM-DD) (wajib)
+  - name: string (wajib)
+- Response (JSON):
+  - object Holiday (terbuat)
+
+## DELETE /holidays/:id
+
+- Deskripsi: Menghapus satu libur.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request: -
+- Response (JSON):
+  - message: string
+
+# Dokumentasi API News
 
 Base path: `/news`
 
-- GET: `/kip`
-  - Query opsional: `refresh=1|true` untuk memaksa refresh cache.
-  - Mengembalikan daftar berita terkurasi dari berbagai RSS.
+## GET /news/kip
 
-## Laporan Uji Akses (User)
+- Deskripsi: Mengambil daftar berita terkait Keterbukaan Informasi Publik (KIP) dari berbagai sumber RSS, hingga 40 item terbaru dalam 30 hari terakhir.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: Admin.
+- Request:
+  - Query (opsional):
+    - refresh: "1" | "true"
+    - force: "1" | "true"
+- Response (JSON):
+  - array of object:
+    - title: string
+    - link: string
+    - summary: string
+    - publishedAt: string (ISO)
+
+# Dokumentasi API Reports
 
 Base path: `/api/reports`
 
-- POST: `/`
-  - Body: `{ badanPublikId: number, answers?: object, status?: 'draft'|'submitted' }`
-  - Jika `submitted`, jawaban wajib lengkap sesuai rubric.
+## GET /api/reports/me
 
-- GET: `/me`
-  - Daftar laporan milik user saat ini.
+- Deskripsi: Mengambil daftar laporan milik user saat ini.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - array of object UjiAksesReport:
+    - id, badan_publik_id, status, total_skor, answers, evidences, submitted_at, createdAt, updatedAt
+    - badanPublik: object
+      - id, nama_badan_publik, kategori, email
 
-- GET: `/:id`
-  - Respon: `{ report, rubric }` (rubric berisi daftar pertanyaan `QUESTIONS`).
+## GET /api/reports/:id
 
-- PATCH: `/:id/submit`
-  - Body opsional: `{ answers: object }`
-  - Menyelesaikan laporan; validasi kelengkapan jawaban.
+- Deskripsi: Mengambil detail satu laporan beserta rubric pertanyaan.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - report: object UjiAksesReport
+    - id, user_id, badan_publik_id, status, total_skor, answers, evidences, submitted_at, createdAt, updatedAt
+    - user: object
+      - id, username, role
+    - badanPublik: object
+      - id, nama_badan_publik, kategori, email, website (opsional)
+  - rubric: array of object
+    - key, section, text, order
+    - options: array of object
+      - key, label, score, order
 
-- POST: `/:id/upload`
-  - Form-data (multipart): `files` (maks 10 file, masing-masing <=10MB)
-  - Query/body: `questionKey` wajib, salah satu key dari rubric `QUESTIONS`.
-  - Mimetype diizinkan: `application/pdf`, `image/png`, `image/jpeg`.
-  - Respon: `{ evidences: { [questionKey]: [{ path, filename, mimetype, size, uploadedAt }] } }`
-  - File statis dapat diakses via `/uploads/uji-akses-reports/<reportId>/<questionKey>/<filename>`.
+## POST /api/reports
 
-## Laporan Uji Akses (Admin)
+- Deskripsi: Membuat laporan baru untuk satu badan publik.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request (JSON):
+  - badanPublikId: number (wajib) atau badan_publik_id: number (wajib)
+  - status: "draft" | "submitted" (opsional)
+  - answers: object (opsional)
+- Response (JSON):
+  - object UjiAksesReport
 
-Base path: `/api/admin/reports` (admin)
+## PATCH /api/reports/:id/submit
 
-- GET: `/`
-  - Query: `q?`, `badanPublikId?`, `status?=draft|submitted`, `sortBy?=total_skor|created_at`, `sortDir?=asc|desc`
-  - Respon: daftar laporan dengan relasi user dan badan publik.
+- Deskripsi: Submit laporan (mengunci jawaban).
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request (JSON):
+  - answers: object (opsional)
+- Response (JSON):
+  - object UjiAksesReport
 
-- GET: `/:id`
-  - Sama seperti detail user, tanpa batasan kepemilikan.
+## POST /api/reports/:id/upload
 
----
+- Deskripsi: Upload bukti (evidence) untuk satu pertanyaan.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request (multipart/form-data):
+  - questionKey: string (wajib)
+  - files: file[] (maks 10; pdf/jpg/jpeg/png; maks 10MB per file)
+- Response (JSON):
+  - evidences: object
 
-## Contoh Penggunaan (cURL)
+# Dokumentasi API Admin Reports
 
-Login:
-```bash
-curl -X POST http://localhost:5000/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"secret"}'
-```
+Base path: `/api/admin/reports`
 
-Mengambil profil diri:
-```bash
-curl http://localhost:5000/users/me \
-  -H "Authorization: Bearer <accessToken>"
-```
+## GET /api/admin/reports
 
-Kirim email massal (template sederhana):
-```bash
-curl -X POST http://localhost:5000/email/send \
-  -H "Authorization: Bearer <accessToken>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "badan_publik_ids": [1,2],
-    "subject_template": "Permohonan Informasi - {{nama_badan_publik}}",
-    "body_template": "Yth. {{nama_badan_publik}},\nMohon informasi ...",
-    "meta": { "pemohon": "Nama Anda", "tanggal": "2025-12-17" }
-  }'
-```
+- Deskripsi: Mengambil daftar laporan dengan opsi pencarian, filter, dan sorting (admin).
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: Admin.
+- Request:
+  - Query (opsional):
+    - q: string (pencarian nama badan publik/kategori)
+    - badanPublikId: number
+    - status: "draft" | "submitted"
+    - sortBy: "total_skor" | "createdAt"
+    - sortDir: "asc" | "desc"
+- Response (JSON):
+  - array of object UjiAksesReport:
+    - id, user_id, badan_publik_id, status, total_skor, answers, evidences, submitted_at, createdAt, updatedAt
+    - user: object
+      - id, username, role
+    - badanPublik: object
+      - id, nama_badan_publik, kategori, email
 
-Upload bukti laporan (multipart):
-```bash
-curl -X POST "http://localhost:5000/api/reports/123/upload?questionKey=q1" \
-  -H "Authorization: Bearer <accessToken>" \
-  -F "files=@C:/path/bukti.pdf"
-```
+## POST /api/admin/reports/bulk-delete
+
+- Deskripsi: Menghapus banyak laporan sekaligus (admin).
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - ids: number[] (wajib)
+- Response (JSON):
+  - message: string
+  - deleted: number
+
+## GET /api/admin/reports/:id
+
+- Deskripsi: Mengambil detail satu laporan beserta rubric pertanyaan (admin).
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: Admin.
+- Request: -
+- Response (JSON):
+  - report: object UjiAksesReport
+    - id, user_id, badan_publik_id, status, total_skor, answers, evidences, submitted_at, createdAt, updatedAt
+    - user: object
+      - id, username, role
+    - badanPublik: object
+      - id, nama_badan_publik, kategori, email, website (opsional)
+  - rubric: array of object
+    - key, section, text, order
+    - options: array of object
+      - key, label, score, order
+
+# Dokumentasi API Uji Akses Questions
+
+Base path: `/uji-akses/questions`
+
+## GET /uji-akses/questions
+
+- Deskripsi: Mengambil daftar pertanyaan uji akses beserta opsi.
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - array of object Question:
+    - id, key, section, text, order
+    - options: array of object
+      - id, key, label, score, order
+
+## POST /uji-akses/questions
+
+- Deskripsi: Membuat pertanyaan baru dengan opsi jawaban.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - text: string (wajib)
+  - section: string (opsional)
+  - order: number (opsional)
+  - options: array of object (wajib)
+    - label: string (wajib)
+    - score: number (wajib)
+    - order: number (opsional)
+    - key: string (opsional)
+- Response (JSON):
+  - object Question (terbuat)
+    - id, key, section, text, order
+    - options: array of object
+      - id, key, label, score, order
+
+## POST /uji-akses/questions/reset
+
+- Deskripsi: Reset pertanyaan uji akses ke template bawaan.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request: -
+- Response (JSON):
+  - message: string
+  - count: number
+
+## PUT /uji-akses/questions/:id
+
+- Deskripsi: Memperbarui pertanyaan dan opsi jawaban.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request (JSON):
+  - text: string (wajib)
+  - section: string (opsional)
+  - order: number (opsional)
+  - options: array of object (wajib)
+    - id: number (opsional; untuk opsi yang diperbarui)
+    - key: string (opsional)
+    - label: string (wajib)
+    - score: number (wajib)
+    - order: number (opsional)
+- Response (JSON):
+  - object Question (terbarui)
+    - id, key, section, text, order
+    - options: array of object
+      - id, key, label, score, order
+
+## DELETE /uji-akses/questions/all
+
+- Deskripsi: Menghapus semua pertanyaan uji akses beserta semua opsi.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request: -
+- Response (JSON):
+  - message: string
+
+## DELETE /uji-akses/questions/:id
+
+- Deskripsi: Menghapus satu pertanyaan beserta opsinya.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: Admin.
+- Request: -
+- Response (JSON):
+  - message: string
