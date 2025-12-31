@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listMyUjiAksesReports, getUjiAksesQuestions } from '../services/reports';
+import { buildServerFileUrl } from '../utils/serverUrl';
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '-';
@@ -88,6 +89,19 @@ const UjiAksesReports = () => {
     return option.score ?? '';
   };
 
+  const collectEvidenceUrls = (item, questionList) => {
+    const evidences = item?.evidences || {};
+    const urls = [];
+    (questionList || []).forEach((q) => {
+      const files = Array.isArray(evidences[q.key]) ? evidences[q.key] : [];
+      files.forEach((file) => {
+        const url = buildServerFileUrl(file?.path || '');
+        if (url) urls.push(url);
+      });
+    });
+    return urls.join(' | ');
+  };
+
   const exportCsv = async () => {
     const questionList = await ensureQuestionsLoaded();
     const columns = buildQuestionColumns(questionList);
@@ -95,9 +109,10 @@ const UjiAksesReports = () => {
       formatDate(item.created_at || item.createdAt),
       item.badanPublik?.nama_badan_publik || '-',
       item.total_skor ?? 0,
-      ...columns.map((q) => getQuestionScore(q, item.answers))
+      ...columns.map((q) => getQuestionScore(q, item.answers)),
+      collectEvidenceUrls(item, questionList)
     ]);
-    const header = ['Tanggal', 'Badan Publik', 'Total Skor', ...columns.map((q) => q.label)];
+    const header = ['Tanggal', 'Badan Publik', 'Total Skor', ...columns.map((q) => q.label), 'Bukti URL'];
     const toCsv = [header, ...rows]
       .map((cols) =>
         cols
@@ -127,7 +142,8 @@ const UjiAksesReports = () => {
       ...columns.reduce((acc, q) => {
         acc[q.label] = getQuestionScore(q, item.answers);
         return acc;
-      }, {})
+      }, {}),
+      'Bukti URL': collectEvidenceUrls(item, questionList)
     }));
     const ws = utils.json_to_sheet(rows);
     const wb = utils.book_new();
