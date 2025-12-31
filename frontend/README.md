@@ -826,7 +826,6 @@ frontend/
 │   ├── main.jsx               # Entry point
 │   └── index.css              # Tailwind imports
 ├── .env                        # Environment variables
-├── .env.example               # Example env file
 ├── eslint.config.js           # ESLint configuration
 ├── index.html                 # HTML template
 ├── package.json               # Dependencies & scripts
