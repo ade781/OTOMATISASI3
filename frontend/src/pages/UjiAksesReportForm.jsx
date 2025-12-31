@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import UjiAksesQuestionCard from '../components/reports/UjiAksesQuestionCard';
 import { computeUjiAksesScores, isUjiAksesComplete, normalizeAnswers } from '../constants/ujiAksesRubric';
 import {
   createUjiAksesReport,
+  deleteUjiAksesEvidence,
+  getMyUjiAksesReportByBadan,
   getUjiAksesQuestions,
   getUjiAksesReportDetail,
+  listMyUjiAksesReports,
   submitUjiAksesReport,
   uploadUjiAksesEvidence
 } from '../services/reports';
@@ -33,6 +36,7 @@ const UjiAksesReportForm = ({ reportId }) => {
   const [loadingBadan, setLoadingBadan] = useState(true);
   const [loadingReport, setLoadingReport] = useState(Boolean(reportId));
   const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const [reportedBadanIds, setReportedBadanIds] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
@@ -51,8 +55,9 @@ const UjiAksesReportForm = ({ reportId }) => {
       return sum + maxScore;
     }, 0);
   }, [questions]);
-  const isSubmitted = report?.status === 'submitted';
-  const canEdit = !isSubmitted;
+  const canEdit = true;
+  const MAX_FILE_SIZE = 2 * 1024 * 1024;
+  const MAX_FILES_PER_QUESTION = 2;
 
   const loadBadanPublik = useCallback(async () => {
     setLoadingBadan(true);
@@ -113,6 +118,44 @@ const UjiAksesReportForm = ({ reportId }) => {
     loadQuestions();
   }, [loadQuestions]);
 
+  useEffect(() => {
+    if (reportId) return;
+    let active = true;
+    const loadReported = async () => {
+      try {
+        const data = await listMyUjiAksesReports();
+        if (!active) return;
+        const ids = new Set((data || []).map((item) => item?.badan_publik_id).filter(Boolean));
+        setReportedBadanIds(ids);
+      } catch (_err) {
+        if (active) setReportedBadanIds(new Set());
+      }
+    };
+    loadReported();
+    return () => {
+      active = false;
+    };
+  }, [reportId]);
+
+  useEffect(() => {
+    if (!selectedBadanId || reportId) return;
+    let active = true;
+    const checkExisting = async () => {
+      try {
+        const existing = await getMyUjiAksesReportByBadan(selectedBadanId);
+        if (active && existing?.id) {
+          navigate(`/laporan/uji-akses/${existing.id}`, { replace: true });
+        }
+      } catch (err) {
+        // abaikan jika belum ada laporan
+      }
+    };
+    checkExisting();
+    return () => {
+      active = false;
+    };
+  }, [selectedBadanId, reportId, navigate]);
+
   const updateAnswer = (key, patch) => {
     setAnswers((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
   };
@@ -120,7 +163,22 @@ const UjiAksesReportForm = ({ reportId }) => {
   const pickFiles = (questionKey, files) => {
     setPendingFiles((prev) => {
       const current = Array.isArray(prev[questionKey]) ? prev[questionKey] : [];
-      return { ...prev, [questionKey]: [...current, ...files] };
+      const existingCount = Array.isArray(evidences?.[questionKey]) ? evidences[questionKey].length : 0;
+      const allowedCount = Math.max(0, MAX_FILES_PER_QUESTION - existingCount);
+      const remainingSlots = Math.max(0, allowedCount - current.length);
+      const normalized = Array.isArray(files) ? files : [];
+      const validFiles = normalized.filter((file) => file.size <= MAX_FILE_SIZE);
+      const rejectedCount = normalized.length - validFiles.length;
+
+      if (rejectedCount > 0) {
+        setError('Ukuran file maksimal 2MB per file.');
+      }
+      if (remainingSlots <= 0) {
+        setError('Maksimal 2 file per pertanyaan.');
+        return prev;
+      }
+
+      return { ...prev, [questionKey]: [...current, ...validFiles.slice(0, remainingSlots)] };
     });
   };
 
@@ -164,7 +222,6 @@ const UjiAksesReportForm = ({ reportId }) => {
         const badanPublikId = Number(selectedBadanId);
         current = await createUjiAksesReport({
           badanPublikId,
-          status: 'draft',
           answers: answersPayload
         });
         setReport(current);
@@ -178,10 +235,14 @@ const UjiAksesReportForm = ({ reportId }) => {
 
       const updated = await submitUjiAksesReport(id, { answers: answersPayload });
       setReport(updated);
-      setInfo('Laporan berhasil disubmit. Form menjadi read-only.');
+      setInfo('Laporan berhasil disimpan.');
       navigate(`/laporan/uji-akses/${id}`, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal submit laporan');
+      if (err.response?.status === 409 && err.response?.data?.report?.id) {
+        navigate(`/laporan/uji-akses/${err.response.data.report.id}`, { replace: true });
+        return;
+      }
+      setError(err.response?.data?.message || 'Gagal menyimpan laporan');
     } finally {
       setSaving(false);
     }
@@ -200,6 +261,12 @@ const UjiAksesReportForm = ({ reportId }) => {
           <p className="text-sm text-slate-600">Rubrik: {questions.length} pertanyaan.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            to="/laporan/uji-akses"
+            className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm"
+          >
+            Kembali
+          </Link>
           {canEdit && (
             <>
               <button
@@ -208,7 +275,7 @@ const UjiAksesReportForm = ({ reportId }) => {
                 disabled={saving}
                 type="button"
               >
-                Submit
+                Simpan
               </button>
             </>
           )}
@@ -229,12 +296,16 @@ const UjiAksesReportForm = ({ reportId }) => {
             <select
               value={selectedBadanId}
               onChange={(e) => setSelectedBadanId(e.target.value)}
-              disabled={!canEdit || loadingBadan || loadingReport}
+              disabled={!canEdit || loadingBadan || loadingReport || Boolean(report?.id || reportId)}
               className="w-full border border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
             >
               <option value="">{loadingBadan ? 'Memuat...' : 'Pilih badan publik'}</option>
               {badanPublik.map((b) => (
-                <option key={b.id} value={b.id}>
+                <option
+                  key={b.id}
+                  value={b.id}
+                  style={reportedBadanIds.has(b.id) ? { backgroundColor: '#ecfdf3' } : undefined}
+                >
                   {b.nama_badan_publik} - {b.kategori}
                 </option>
               ))}
@@ -298,6 +369,28 @@ const UjiAksesReportForm = ({ reportId }) => {
               evidences={evidences?.[q.key] || []}
               pendingFiles={pendingFiles?.[q.key] || []}
               onPickFiles={(files) => pickFiles(q.key, files)}
+              onRemovePending={(idx) =>
+                setPendingFiles((prev) => {
+                  const current = Array.isArray(prev[q.key]) ? prev[q.key] : [];
+                  const next = current.filter((_, i) => i !== idx);
+                  return { ...prev, [q.key]: next };
+                })
+              }
+              onDeleteEvidence={async (filePath) => {
+                if (!report?.id) return;
+                setError('');
+                setInfo('');
+                try {
+                  setSaving(true);
+                  const res = await deleteUjiAksesEvidence(report.id, q.key, filePath);
+                  setEvidences(res?.evidences || {});
+                  setInfo('Bukti berhasil dihapus.');
+                } catch (err) {
+                  setError(err.response?.data?.message || 'Gagal menghapus bukti');
+                } finally {
+                  setSaving(false);
+                }
+              }}
               onUploadNow={
                 report?.id
                   ? async () => {

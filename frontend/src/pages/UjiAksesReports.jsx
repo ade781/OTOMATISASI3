@@ -1,23 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { listMyUjiAksesReports, getUjiAksesQuestions } from '../services/reports';
-import { buildServerFileUrl } from '../utils/serverUrl';
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return '-';
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) return '-';
-  const datePart = date.toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
-  const timePart = date.toLocaleTimeString('id-ID', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-  return `${datePart}: ${timePart}`;
-};
+import {
+  buildQuestionColumns,
+  exportUjiAksesCsv,
+  exportUjiAksesPdf,
+  exportUjiAksesXlsx,
+  formatDate
+} from '../utils/ujiAksesReportExport';
 
 const UjiAksesReports = () => {
   const [reports, setReports] = useState([]);
@@ -66,14 +56,6 @@ const UjiAksesReports = () => {
     return (reports || []).slice().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [reports]);
 
-  const buildQuestionColumns = (questionList) => {
-    return (questionList || []).map((q, idx) => ({
-      key: q.key,
-      label: `Q${idx + 1}: ${q.text}`,
-      options: q.options || []
-    }));
-  };
-
   const questionColumns = useMemo(() => buildQuestionColumns(questions), [questions]);
 
   const ensureQuestionsLoaded = useCallback(async () => {
@@ -81,108 +63,35 @@ const UjiAksesReports = () => {
     return loadQuestions();
   }, [questions, loadQuestions]);
 
-  const getQuestionScore = (question, answers) => {
-    const answer = answers?.[question.key];
-    if (!answer) return '';
-    const option = (question.options || []).find((opt) => opt.key === answer.optionKey);
-    if (!option) return '';
-    return option.score ?? '';
-  };
-
-  const collectEvidenceUrls = (item, questionList) => {
-    const evidences = item?.evidences || {};
-    const urls = [];
-    (questionList || []).forEach((q) => {
-      const files = Array.isArray(evidences[q.key]) ? evidences[q.key] : [];
-      files.forEach((file) => {
-        const url = buildServerFileUrl(file?.path || '');
-        if (url) urls.push(url);
-      });
-    });
-    return urls.join(' | ');
-  };
-
   const exportCsv = async () => {
     const questionList = await ensureQuestionsLoaded();
-    const columns = buildQuestionColumns(questionList);
-    const rows = sorted.map((item) => [
-      formatDate(item.created_at || item.createdAt),
-      item.badanPublik?.nama_badan_publik || '-',
-      item.total_skor ?? 0,
-      ...columns.map((q) => getQuestionScore(q, item.answers)),
-      collectEvidenceUrls(item, questionList)
-    ]);
-    const header = ['Tanggal', 'Badan Publik', 'Total Skor', ...columns.map((q) => q.label), 'Bukti URL'];
-    const toCsv = [header, ...rows]
-      .map((cols) =>
-        cols
-          .map((val) => {
-            const safe = (val || '').toString().replace(/"/g, '""');
-            return `"${safe}"`;
-          })
-          .join(',')
-      )
-      .join('\n');
-    const blob = new Blob([toCsv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'uji-akses-reports.csv';
-    link.click();
-    URL.revokeObjectURL(link.href);
+    exportUjiAksesCsv({
+      reports: sorted,
+      questionList,
+      includeUser: false,
+      filename: 'uji-akses-reports.csv'
+    });
   };
 
   const exportXlsx = async () => {
     const questionList = await ensureQuestionsLoaded();
-    const columns = buildQuestionColumns(questionList);
-    const { utils, writeFile } = await import('xlsx');
-    const rows = sorted.map((item) => ({
-      Tanggal: formatDate(item.created_at || item.createdAt),
-      'Badan Publik': item.badanPublik?.nama_badan_publik || '-',
-      'Total Skor': item.total_skor ?? 0,
-      ...columns.reduce((acc, q) => {
-        acc[q.label] = getQuestionScore(q, item.answers);
-        return acc;
-      }, {}),
-      'Bukti URL': collectEvidenceUrls(item, questionList)
-    }));
-    const ws = utils.json_to_sheet(rows);
-    const wb = utils.book_new();
-    utils.book_append_sheet(wb, ws, 'Laporan');
-    writeFile(wb, 'uji-akses-reports.xlsx');
+    await exportUjiAksesXlsx({
+      reports: sorted,
+      questionList,
+      includeUser: false,
+      filename: 'uji-akses-reports.xlsx'
+    });
   };
 
   const exportPdf = async () => {
     const questionList = await ensureQuestionsLoaded();
-    const columns = buildQuestionColumns(questionList);
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF();
-    doc.setFontSize(14);
-    doc.text('Laporan Uji Akses', 14, 16);
-    doc.setFontSize(10);
-    let y = 26;
-    sorted.forEach((item, idx) => {
-      const lines = [
-        `${idx + 1}. ${item.badanPublik?.nama_badan_publik || '-'}`,
-        `Tanggal: ${formatDate(item.created_at || item.createdAt)}`,
-        `Total Skor: ${item.total_skor ?? 0}`
-      ];
-      columns.forEach((q) => {
-        lines.push(`${q.label}: ${getQuestionScore(q, item.answers)}`);
-      });
-      lines.forEach((line) => {
-        const wrapped = doc.splitTextToSize(line, 180);
-        wrapped.forEach((chunk) => {
-          if (y > 280) {
-            doc.addPage();
-            y = 16;
-          }
-          doc.text(chunk, 14, y);
-          y += 6;
-        });
-      });
-      y += 2;
+    await exportUjiAksesPdf({
+      reports: sorted,
+      questionList,
+      includeUser: false,
+      filename: 'uji-akses-reports.pdf',
+      title: 'Laporan Uji Akses'
     });
-    doc.save('uji-akses-reports.pdf');
   };
 
   return (

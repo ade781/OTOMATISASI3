@@ -42,7 +42,7 @@ const AddUser = () => {
   const [roleChangeUser, setRoleChangeUser] = useState(null);
   const [roleChangeLoading, setRoleChangeLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(30);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [importOpen, setImportOpen] = useState(false);
   const [importPreview, setImportPreview] = useState([]);
@@ -469,11 +469,11 @@ const AddUser = () => {
             }}
             className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
           >
-
             <option value={10}>10 baris</option>
-            <option value={15}>15 baris</option>
             <option value={30}>30 baris</option>
             <option value={50}>50 baris</option>
+            <option value={80}>80 baris</option>
+            <option value={100}>100 baris</option>
           </select>
           <div className="flex items-center text-xs text-slate-500 px-2">Total: {filteredUsers.length}</div>
         </div>

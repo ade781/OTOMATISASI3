@@ -17,7 +17,7 @@ import {
 } from "../utils/ujiAksesScoring.js";
 
 // Constants
-const VALID_STATUSES = ["draft", "submitted"];
+const VALID_STATUSES = ["submitted"];
 const SORT_FIELDS = ["total_skor", "createdAt"];
 const DEFAULT_SORT = { field: "createdAt", direction: "DESC" };
 
@@ -110,7 +110,7 @@ const updateBadanPublikStatus = async (badanPublikId, status) => {
 
 const createReport = async (req, res) => {
   try {
-    const { badanPublikId, badan_publik_id, status, answers = {} } = req.body;
+    const { badanPublikId, badan_publik_id, answers = {} } = req.body;
     const targetBadanPublikId = Number(badanPublikId ?? badan_publik_id);
 
     if (!targetBadanPublikId) {
@@ -135,35 +135,41 @@ const createReport = async (req, res) => {
       });
     }
 
-    const reportStatus = status === "submitted" ? "submitted" : "draft";
+    const existing = await UjiAksesReport.findOne({
+      where: { user_id: req.user.id, badan_publik_id: targetBadanPublikId },
+      include: [{ model: BadanPublik, as: "badanPublik" }],
+    });
+    if (existing) {
+      return res.status(409).json({
+        message: "Laporan untuk badan publik ini sudah ada",
+        report: toPlainReport(existing),
+      });
+    }
+
     const questions = await loadQuestions();
     const computed = computeAnswersAndTotal(toRubric(questions), answers);
 
-    if (reportStatus === "submitted") {
-      const missing = validateSubmittedAnswers(
-        toRubric(questions),
-        computed.answers
-      );
-      if (missing.length) {
-        return res.status(400).json({
-          message: `Jawaban belum lengkap: ${missing.join(", ")}`,
-        });
-      }
+    const missing = validateSubmittedAnswers(
+      toRubric(questions),
+      computed.answers
+    );
+    if (missing.length) {
+      return res.status(400).json({
+        message: `Jawaban belum lengkap: ${missing.join(", ")}`,
+      });
     }
 
     const report = await UjiAksesReport.create({
       user_id: req.user.id,
       badan_publik_id: targetBadanPublikId,
-      status: reportStatus,
+      status: "submitted",
       total_skor: computed.totalSkor,
       answers: computed.answers,
       evidences: {},
-      submitted_at: reportStatus === "submitted" ? new Date() : null,
+      submitted_at: new Date(),
     });
 
-    if (reportStatus === "submitted") {
-      await updateBadanPublikStatus(targetBadanPublikId, "selesai");
-    }
+    await updateBadanPublikStatus(targetBadanPublikId, "selesai");
 
     return res.status(201).json(toPlainReport(report));
   } catch (err) {
@@ -208,10 +214,6 @@ const submitReport = async (req, res) => {
   try {
     const report = await getReportOr403(req, res, req.params.id);
     if (!report) return;
-
-    if (report.status === "submitted") {
-      return res.json(toPlainReport(report));
-    }
 
     const questions = await loadQuestions();
     const answers = req.body?.answers ?? report.answers ?? {};
@@ -293,12 +295,6 @@ const uploadEvidence = async (req, res) => {
     const report = await getReportOr403(req, res, req.params.id);
     if (!report) return;
 
-    if (report.status === "submitted") {
-      return res.status(400).json({
-        message: "Report sudah submitted dan tidak bisa upload bukti",
-      });
-    }
-
     const questionKey = String(
       req.body?.questionKey || req.query?.questionKey || ""
     ).trim();
@@ -318,6 +314,12 @@ const uploadEvidence = async (req, res) => {
     const evidencesList = Array.isArray(currentEvidences[questionKey])
       ? [...currentEvidences[questionKey]]
       : [];
+
+    if (evidencesList.length + files.length > 2) {
+      return res.status(400).json({
+        message: "Maksimal 2 file per pertanyaan",
+      });
+    }
 
     for (const file of files) {
       evidencesList.push({
@@ -342,6 +344,75 @@ const uploadEvidence = async (req, res) => {
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Gagal upload bukti" });
+  }
+};
+
+const deleteEvidence = async (req, res) => {
+  try {
+    const report = await getReportOr403(req, res, req.params.id);
+    if (!report) return;
+
+    const questionKey = String(req.body?.questionKey || "").trim();
+    const evidencePath = String(req.body?.path || "").trim().replace(/\\/g, "/");
+
+    if (!questionKey || !evidencePath) {
+      return res.status(400).json({ message: "questionKey dan path wajib diisi" });
+    }
+    if (!evidencePath.startsWith("/uploads/")) {
+      return res.status(400).json({ message: "Path bukti tidak valid" });
+    }
+
+    const currentEvidences = normalizeMaybeJson(report.evidences);
+    const evidencesList = Array.isArray(currentEvidences[questionKey])
+      ? [...currentEvidences[questionKey]]
+      : [];
+
+    const nextList = evidencesList.filter((item) => item?.path !== evidencePath);
+    if (nextList.length === evidencesList.length) {
+      return res.status(404).json({ message: "Bukti tidak ditemukan" });
+    }
+
+    const uploadsRoot = path.resolve(__dirname, "..", "..", "uploads");
+    const relative = evidencePath.replace(/^\/uploads\//, "");
+    const absolute = path.resolve(uploadsRoot, relative);
+    if (absolute.startsWith(uploadsRoot)) {
+      fs.unlink(absolute, () => {});
+    }
+
+    const updatedEvidences = {
+      ...currentEvidences,
+      [questionKey]: nextList,
+    };
+
+    await report.update({ evidences: updatedEvidences });
+
+    return res.json({ evidences: updatedEvidences });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Gagal menghapus bukti" });
+  }
+};
+
+const getMyReportByBadanPublik = async (req, res) => {
+  try {
+    const badanPublikId = Number(req.params.badanPublikId);
+    if (!badanPublikId) {
+      return res.status(400).json({ message: "badanPublikId tidak valid" });
+    }
+
+    const report = await UjiAksesReport.findOne({
+      where: { user_id: req.user.id, badan_publik_id: badanPublikId },
+      include: [{ model: BadanPublik, as: "badanPublik" }],
+    });
+
+    if (!report) {
+      return res.json({ report: null });
+    }
+
+    return res.json({ report: toPlainReport(report) });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Gagal mengambil report" });
   }
 };
 
@@ -400,7 +471,9 @@ export {
   submitReport,
   adminListReports,
   uploadEvidence,
+  deleteEvidence,
   ensureReportUploadDir,
   getMulterStoragePath,
   adminDeleteReportsBulk,
+  getMyReportByBadanPublik,
 };

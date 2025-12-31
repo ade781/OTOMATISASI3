@@ -9,7 +9,9 @@ import {
   getReportDetail,
   submitReport,
   uploadEvidence,
-  ensureReportUploadDir
+  ensureReportUploadDir,
+  deleteEvidence,
+  getMyReportByBadanPublik
 } from '../controllers/ujiAksesReportController.js';
 import { requireCsrfForUnsafeMethods } from '../middleware/requireCsrf.js';
 
@@ -22,8 +24,8 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/jpg'
 ]);
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const MAX_FILES = 10;
+const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+const MAX_FILES = 2;
 
 // Multer storage configuration
 const storage = multer.diskStorage({
@@ -62,10 +64,12 @@ router.use(verifyToken, requireCsrfForUnsafeMethods);
 
 // Report endpoints
 router.get('/me', listMyReports);
+router.get('/by-badan/:badanPublikId', getMyReportByBadanPublik);
 router.get('/:id', getReportDetail);
 router.post('/', createReport);
 router.patch('/:id/submit', submitReport);
 router.post('/:id/upload', upload.array('files', MAX_FILES), uploadEvidence);
+router.delete('/:id/evidence', deleteEvidence);
 
 // Error handler for multer
 router.use((err, req, res, next) => {

@@ -121,7 +121,7 @@ Base path: `/config`
 
 ## POST /config/reset
 
-- Deskripsi: Reset database, menghapus semua data terkait (kecuali user admin).
+- Deskripsi: Reset database, menghapus semua data terkait (kecuali user admin) dan membersihkan folder uploads.
 - Auth: perlu.
 - CSRF: perlu.
 - CheckRole: Admin.
@@ -673,14 +673,23 @@ Base path: `/api/reports`
 - CheckRole: tidak perlu.
 - Request (JSON):
   - badanPublikId: number (wajib) atau badan_publik_id: number (wajib)
-  - status: "draft" | "submitted" (opsional)
   - answers: object (opsional)
 - Response (JSON):
   - object UjiAksesReport
 
+## GET /api/reports/by-badan/:badanPublikId
+
+- Deskripsi: Mengambil laporan user saat ini berdasarkan badan publik (jika ada).
+- Auth: perlu.
+- CSRF: tidak perlu.
+- CheckRole: tidak perlu.
+- Request: -
+- Response (JSON):
+  - report: object UjiAksesReport | null
+
 ## PATCH /api/reports/:id/submit
 
-- Deskripsi: Submit laporan (mengunci jawaban).
+- Deskripsi: Simpan/submit laporan (tetap dapat diedit).
 - Auth: perlu.
 - CSRF: perlu.
 - CheckRole: tidak perlu.
@@ -697,7 +706,19 @@ Base path: `/api/reports`
 - CheckRole: tidak perlu.
 - Request (multipart/form-data):
   - questionKey: string (wajib)
-  - files: file[] (maks 10; pdf/jpg/jpeg/png; maks 10MB per file)
+  - files: file[] (maks 2; pdf/jpg/jpeg/png; maks 2MB per file)
+- Response (JSON):
+  - evidences: object
+
+## DELETE /api/reports/:id/evidence
+
+- Deskripsi: Hapus satu file bukti untuk pertanyaan tertentu.
+- Auth: perlu.
+- CSRF: perlu.
+- CheckRole: tidak perlu.
+- Request (JSON):
+  - questionKey: string (wajib)
+  - path: string (wajib, format "/uploads/...")
 - Response (JSON):
   - evidences: object
 
@@ -715,7 +736,7 @@ Base path: `/api/admin/reports`
   - Query (opsional):
     - q: string (pencarian nama badan publik/kategori)
     - badanPublikId: number
-    - status: "draft" | "submitted"
+    - status: "submitted"
     - sortBy: "total_skor" | "createdAt"
     - sortDir: "asc" | "desc"
 - Response (JSON):

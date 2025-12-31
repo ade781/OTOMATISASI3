@@ -41,6 +41,18 @@ export const uploadUjiAksesEvidence = async (id, questionKey, files = []) => {
   return res.data;
 };
 
+export const deleteUjiAksesEvidence = async (id, questionKey, path) => {
+  const res = await api.delete(`/api/reports/${id}/evidence`, {
+    data: { questionKey, path }
+  });
+  return res.data;
+};
+
+export const getMyUjiAksesReportByBadan = async (badanPublikId) => {
+  const res = await api.get(`/api/reports/by-badan/${badanPublikId}`);
+  return res.data?.report || null;
+};
+
 export const getUjiAksesQuestions = async () => {
   const res = await api.get('/uji-akses/questions');
   return res.data;

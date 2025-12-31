@@ -97,37 +97,37 @@ const HistoryLog = () => {
 
   useEffect(() => {
     if (!user) return;
-    
+
     const streamUrl = `${baseUrl}/email/stream?userId=${user.id}&username=${encodeURIComponent(
       user.username
     )}`;
-    
-     setStreamStatus('connecting');
-    
+
+    setStreamStatus('connecting');
+
     let es = null;
     let isCleanedUp = false;
-    
+
     // Delay untuk skip React Strict Mode double mount
     const timeoutId = setTimeout(() => {
       if (isCleanedUp) {
         return;
       }
-      
+
       es = new EventSourcePolyfill(streamUrl, {
         withCredentials: true,
         heartbeatTimeout: 300000, // 5 menit
       });
-      
+
       eventSourceRef.current = es;
 
       es.onopen = (e) => {
         setStreamStatus('live');
       };
-      
+
       es.onerror = (err) => {
         console.error('❌ SSE error:', err);
 
-        
+
         // Jangan set offline jika sedang reconnecting
         if (es?.readyState === EventSourcePolyfill.CONNECTING) {
           setStreamStatus('connecting');
@@ -135,7 +135,7 @@ const HistoryLog = () => {
           setStreamStatus('offline');
         }
       };
-      
+
       es.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -149,7 +149,7 @@ const HistoryLog = () => {
     return () => {
       isCleanedUp = true;
       clearTimeout(timeoutId);
-      
+
       if (es || eventSourceRef.current) {
         es?.close();
         eventSourceRef.current?.close();
@@ -390,24 +390,22 @@ const HistoryLog = () => {
           <h1 className="text-2xl font-bold text-slate-900">History Log</h1>
           <div className="flex flex-wrap items-center gap-2 mt-2">
             <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                user?.role === 'admin'
+              className={`px-3 py-1 rounded-full text-xs font-semibold ${user?.role === 'admin'
                   ? 'bg-amber-100 text-amber-700'
                   : 'bg-slate-200 text-slate-700'
-              }`}
+                }`}
             >
               {user?.role === 'admin'
                 ? 'Admin: melihat semua log'
                 : 'User: hanya log milik Anda'}
             </span>
             <span
-              className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                streamStatus === 'live'
+              className={`px-3 py-1 rounded-full text-xs font-semibold ${streamStatus === 'live'
                   ? 'bg-emerald-100 text-emerald-700'
                   : streamStatus === 'connecting'
-                  ? 'bg-amber-100 text-amber-700'
-                  : 'bg-slate-200 text-slate-700'
-              }`}
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-slate-200 text-slate-700'
+                }`}
             >
               SSE {streamStatus}
             </span>
@@ -456,9 +454,8 @@ const HistoryLog = () => {
                     <button
                       key={opt}
                       onClick={() => setStatusFilter(opt)}
-                      className={`px-3 py-2 text-sm font-semibold ${
-                        statusFilter === opt ? 'bg-primary text-white' : 'text-slate-700'
-                      }`}
+                      className={`px-3 py-2 text-sm font-semibold ${statusFilter === opt ? 'bg-primary text-white' : 'text-slate-700'
+                        }`}
                     >
                       {opt === 'all' ? 'Semua' : opt}
                     </button>
@@ -476,9 +473,8 @@ const HistoryLog = () => {
                       <button
                         key={opt.key}
                         onClick={() => setOwnerFilter(opt.key)}
-                        className={`px-3 py-2 text-sm font-semibold ${
-                          ownerFilter === opt.key ? 'bg-secondary text-white' : 'text-slate-700'
-                        }`}
+                        className={`px-3 py-2 text-sm font-semibold ${ownerFilter === opt.key ? 'bg-secondary text-white' : 'text-slate-700'
+                          }`}
                       >
                         {opt.label}
                       </button>
@@ -518,9 +514,8 @@ const HistoryLog = () => {
               {filteredLogs.slice(0, 6).map((item) => (
                 <div key={item.id} className="flex items-start gap-2">
                   <div
-                    className={`mt-1 w-2 h-2 rounded-full ${
-                      item.status === 'success' ? 'bg-emerald-500' : 'bg-rose-500'
-                    }`}
+                    className={`mt-1 w-2 h-2 rounded-full ${item.status === 'success' ? 'bg-emerald-500' : 'bg-rose-500'
+                      }`}
                   />
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-slate-900 line-clamp-1">
@@ -563,7 +558,7 @@ const HistoryLog = () => {
                 </th>
                 <th className="px-4 py-3 text-left">Pengirim</th>
                 <th className="px-4 py-3 text-left">Target</th>
-                <th className="px-4 py-3 text-left">Tenggat</th>
+                <th className="px-5 py-3 text-left">Tenggat</th>
                 <th className="px-4 py-3 text-left">Waktu</th>
                 <th className="px-4 py-3 text-left">Status BP</th>
                 <th className="px-4 py-3 text-left">Status Email</th>

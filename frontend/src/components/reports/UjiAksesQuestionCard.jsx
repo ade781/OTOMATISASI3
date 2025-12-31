@@ -15,7 +15,9 @@ const UjiAksesQuestionCard = ({
   evidences = [],
   pendingFiles = [],
   onPickFiles,
-  onUploadNow
+  onUploadNow,
+  onDeleteEvidence,
+  onRemovePending
 }) => {
   const mergedExisting = Array.isArray(evidences) ? evidences : [];
   const mergedPending = Array.isArray(pendingFiles) ? pendingFiles : [];
@@ -124,6 +126,18 @@ const UjiAksesQuestionCard = ({
                         <div className="text-xs font-semibold text-slate-800 truncate">{f.filename}</div>
                         <div className="text-[11px] text-slate-500 truncate">{f.mimetype}</div>
                       </div>
+                      {!disabled && typeof onDeleteEvidence === 'function' && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            onDeleteEvidence(f.path);
+                          }}
+                          className="ml-auto px-2 py-1 rounded-lg border border-rose-200 text-rose-600 text-[10px] font-semibold hover:bg-rose-50"
+                        >
+                          Hapus
+                        </button>
+                      )}
                     </a>
                   );
                 })}
@@ -141,6 +155,15 @@ const UjiAksesQuestionCard = ({
                       <div className="text-xs font-semibold text-slate-800 truncate">{f.name}</div>
                       <div className="text-[11px] text-slate-500 truncate">{f.type || 'file'}</div>
                     </div>
+                    {!disabled && typeof onRemovePending === 'function' && (
+                      <button
+                        type="button"
+                        onClick={() => onRemovePending(idx)}
+                        className="ml-auto px-2 py-1 rounded-lg border border-slate-200 text-slate-600 text-[10px] font-semibold hover:bg-slate-100"
+                      >
+                        Hapus
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

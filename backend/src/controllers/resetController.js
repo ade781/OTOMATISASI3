@@ -1,4 +1,7 @@
 import { Op } from "sequelize";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import {
   db,
   User,
@@ -12,6 +15,19 @@ import {
   UjiAksesQuestion,
   UjiAksesOption,
 } from "../models/index.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const clearUploadsDir = () => {
+  const uploadsRoot = path.resolve(__dirname, "..", "..", "uploads");
+  if (!fs.existsSync(uploadsRoot)) return;
+  const entries = fs.readdirSync(uploadsRoot);
+  entries.forEach((entry) => {
+    const target = path.join(uploadsRoot, entry);
+    fs.rmSync(target, { recursive: true, force: true });
+  });
+};
 
 const resetDatabase = async (req, res) => {
   const transaction = await db.transaction();
@@ -34,6 +50,7 @@ const resetDatabase = async (req, res) => {
     });
 
     await transaction.commit();
+    clearUploadsDir();
 
     return res.json({
       message: "Reset database berhasil. Semua data dihapus kecuali user admin.",

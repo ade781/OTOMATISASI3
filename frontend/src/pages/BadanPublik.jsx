@@ -75,6 +75,14 @@ const decodeHtml = (val) => {
   }
 };
 
+const getWebsiteTextClass = (val) => {
+  const len = String(val || '').length;
+  if (len > 80) return 'text-[10px]';
+  if (len > 60) return 'text-[11px]';
+  if (len > 40) return 'text-xs';
+  return 'text-sm';
+};
+
 const isValidEmail = (val) => {
   if (!val) return false;
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
@@ -210,12 +218,13 @@ const BadanPublik = () => {
     }
     if (item) {
       setEditingId(item.id);
+      const websiteValue = decodeHtml(item.website || '');
       setFormData({
         nama_badan_publik: item.nama_badan_publik || '',
         kategori: item.kategori || '',
         email: item.email || '',
-        website: item.website || '',
-        pertanyaan: item.pertanyaan || '',
+        website: websiteValue,
+        pertanyaan: decodeHtml(item.pertanyaan || ''),
         status: item.status || 'pending',
         thread_id: item.thread_id || ''
       });
@@ -925,9 +934,15 @@ const BadanPublik = () => {
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-slate-700">{truncate(decodeHtml(item.website) || '-', 36)}</td>
+                    <td
+                      className={`px-3 py-2 text-slate-700 break-all ${getWebsiteTextClass(
+                        decodeHtml(item.website) || ''
+                      )}`}
+                    >
+                      {decodeHtml(item.website) || '-'}
+                    </td>
                     <td className="px-3 py-2 text-slate-700 whitespace-pre-wrap w-[22%] min-w-[320px] align-top">
-                      {truncate(item.pertanyaan || '-', 60)}
+                      {truncate(decodeHtml(item.pertanyaan) || '-', 60)}
                     </td>
                     <td className="px-3 py-2">
                       <span
@@ -1053,7 +1068,9 @@ const BadanPublik = () => {
                   <input
                     value={formData.website}
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                    className="w-full border border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+                    className={`w-full border border-slate-200 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary shadow-sm ${getWebsiteTextClass(
+                      formData.website
+                    )}`}
                     placeholder="https://"
                   />
                 </div>

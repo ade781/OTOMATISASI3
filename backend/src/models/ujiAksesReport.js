@@ -16,9 +16,9 @@ const UjiAksesReport = db.define("UjiAksesReport", {
     allowNull: false,
   },
   status: {
-    type: Sequelize.ENUM("draft", "submitted"),
+    type: Sequelize.ENUM("submitted"),
     allowNull: false,
-    defaultValue: "draft",
+    defaultValue: "submitted",
   },
   total_skor: {
     type: Sequelize.INTEGER,
