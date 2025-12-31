@@ -11,6 +11,8 @@ const ComposerSection = ({
   statusMessage,
   handleSend,
   sending,
+  sendProgress = 0,
+  sendStats = null,
   templates,
   activeTemplate,
   selectedTemplateId,
@@ -224,6 +226,27 @@ const ComposerSection = ({
           )}
         </button>
       </div>
+
+      {(sending || sendProgress > 0) && (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between text-xs text-slate-600">
+            <span>
+              {sending
+                ? `Mengirim ${sendStats?.total ?? selectedCount} penerima...`
+                : `Selesai: ${sendStats?.success ?? 0} sukses, ${sendStats?.failed ?? 0} gagal dari ${
+                    sendStats?.total ?? selectedCount
+                  }.`}
+            </span>
+            <span className="font-semibold text-slate-700">{Math.round(sendProgress)}%</span>
+          </div>
+          <div className="h-2 rounded-full bg-slate-200 overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 transition-all duration-300"
+              style={{ width: `${Math.round(sendProgress)}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

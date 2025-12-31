@@ -96,6 +96,9 @@ const DashboardPage = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [sendProgress, setSendProgress] = useState(0);
+  const [sendStats, setSendStats] = useState(null);
+  const sendTimerRef = useRef(null);
   const [successInfo, setSuccessInfo] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [attachment, setAttachment] = useState(null);
@@ -435,6 +438,14 @@ const DashboardPage = () => {
     return renderTemplate(bodyTemplate, sampleTarget);
   }, [badan, selectedIds, bodyTemplate, renderTemplate]);
 
+  useEffect(() => {
+    return () => {
+      if (sendTimerRef.current) {
+        clearInterval(sendTimerRef.current);
+      }
+    };
+  }, []);
+
   const attachmentInfo = useMemo(() => {
     if (!attachment) return null;
     return `${attachment.filename || 'Lampiran'}${attachment.size ? ` (${formatBytes(attachment.size)})` : ''}${
@@ -471,6 +482,16 @@ const DashboardPage = () => {
     }
     setConfirmOpen(false);
     setSending(true);
+    setSendStats({ total: selectedIds.length, success: 0, failed: 0 });
+    setSendProgress(5);
+    if (sendTimerRef.current) clearInterval(sendTimerRef.current);
+    sendTimerRef.current = setInterval(() => {
+      setSendProgress((prev) => {
+        if (prev >= 90) return prev;
+        const bump = Math.random() * 8 + 2;
+        return Math.min(90, prev + bump);
+      });
+    }, 500);
     try {
       const payload = {
         badan_publik_ids: selectedIds,
@@ -489,6 +510,7 @@ const DashboardPage = () => {
       const results = res.data?.results || [];
       const failed = results.filter((r) => r.status === 'failed').length;
       const success = results.filter((r) => r.status === 'success').length;
+      setSendStats({ total: selectedIds.length, success, failed });
       if (success === 0) {
         setStatusMessage(failed > 0 ? 'Gagal mengirim: semua target gagal. Periksa email tujuan.' : 'Gagal mengirim.');
       } else {
@@ -528,7 +550,13 @@ const DashboardPage = () => {
       }
     } catch (err) {
       setStatusMessage(err.response?.data?.message || 'Gagal mengirim email');
+      setSendStats(null);
     } finally {
+      if (sendTimerRef.current) {
+        clearInterval(sendTimerRef.current);
+        sendTimerRef.current = null;
+      }
+      setSendProgress((prev) => (prev > 0 ? 100 : 0));
       setSending(false);
     }
   };
@@ -640,6 +668,8 @@ const DashboardPage = () => {
         statusMessage={statusMessage}
         handleSend={handleSend}
         sending={sending}
+        sendProgress={sendProgress}
+        sendStats={sendStats}
         templates={templates}
         activeTemplate={activeTemplate}
         selectedTemplateId={selectedTemplateId}
