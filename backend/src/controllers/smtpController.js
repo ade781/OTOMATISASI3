@@ -4,7 +4,10 @@ import { SmtpConfig } from "../models/index.js";
 
 // Constants
 const GMAIL_SMTP_CONFIG = {
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  requireTLS: true,
 };
 
 const GMAIL_IMAP_CONFIG = {
@@ -17,23 +20,40 @@ const ERROR_MESSAGES = {
   MISSING_CREDENTIALS: "Email dan App Password wajib diisi",
   NO_CONFIG: "SMTP belum disetel. Isi email + App Password dulu.",
   SMTP_INVALID:
-    "SMTP tidak valid. Periksa email + App Password Gmail, pastikan 2FA aktif dan IMAP diaktifkan.",
+    "SMTP tidak valid. Periksa email + App Password Gmail, pastikan 2FA aktif dan App Password benar.",
   IMAP_INVALID:
     "IMAP gagal diverifikasi. Pastikan IMAP diaktifkan dan App Password benar.",
 };
 
 // Helper functions
+const normalizeEmail = (email) => String(email || "").trim();
+const normalizeAppPassword = (password) => String(password || "").replace(/\s+/g, "");
+
 const createSmtpTransporter = (email, password) => {
   return nodemailer.createTransport({
     ...GMAIL_SMTP_CONFIG,
-    auth: { user: email, pass: password },
+    auth: {
+      user: normalizeEmail(email),
+      pass: normalizeAppPassword(password),
+    },
   });
+};
+
+const getSmtpErrorMessage = (err) => {
+  if (err?.code === "ESOCKET" || err?.code === "ECONNECTION") {
+    return "Koneksi SMTP Gmail gagal dari server. Coba lagi atau cek jaringan/firewall; aplikasi memakai smtp.gmail.com port 587.";
+  }
+
+  return ERROR_MESSAGES.SMTP_INVALID;
 };
 
 const createImapClient = (email, password) => {
   return new ImapFlow({
     ...GMAIL_IMAP_CONFIG,
-    auth: { user: email, pass: password },
+    auth: {
+      user: normalizeEmail(email),
+      pass: normalizeAppPassword(password),
+    },
   });
 };
 
@@ -51,8 +71,10 @@ const getStoredCredentials = async (userId) => {
 const saveSmtpConfig = async (req, res) => {
   try {
     const { email_address, app_password } = req.body;
+    const email = normalizeEmail(email_address);
+    const password = normalizeAppPassword(app_password);
 
-    if (!email_address || !app_password) {
+    if (!email || !password) {
       return res
         .status(400)
         .json({ message: ERROR_MESSAGES.MISSING_CREDENTIALS });
@@ -60,8 +82,8 @@ const saveSmtpConfig = async (req, res) => {
 
     await SmtpConfig.upsert({
       user_id: req.user.id,
-      email_address,
-      app_password,
+      email_address: email,
+      app_password: password,
     });
 
     return res.json({ message: "Konfigurasi SMTP tersimpan" });
@@ -89,8 +111,8 @@ const checkSmtpConfig = async (req, res) => {
 const verifySmtpConfig = async (req, res) => {
   try {
     const { email_address, app_password } = req.body;
-    let email = email_address;
-    let password = app_password;
+    let email = normalizeEmail(email_address);
+    let password = normalizeAppPassword(app_password);
 
     // Gunakan kredensial tersimpan jika tidak ada di body
     if (!email || !password) {
@@ -100,8 +122,8 @@ const verifySmtpConfig = async (req, res) => {
         return res.status(400).json({ message: ERROR_MESSAGES.NO_CONFIG });
       }
 
-      email = stored.email;
-      password = stored.password;
+      email = normalizeEmail(stored.email);
+      password = normalizeAppPassword(stored.password);
     }
 
     const transporter = createSmtpTransporter(email, password);
@@ -114,7 +136,7 @@ const verifySmtpConfig = async (req, res) => {
     } catch (err) {
       console.error("SMTP verify failed", err);
       return res.status(400).json({
-        message: ERROR_MESSAGES.SMTP_INVALID,
+        message: getSmtpErrorMessage(err),
         detail: err.message,
       });
     }
@@ -128,14 +150,16 @@ const verifySmtpConfig = async (req, res) => {
 const verifyImapConfig = async (req, res) => {
   try {
     const { email_address, app_password } = req.body;
+    const email = normalizeEmail(email_address);
+    const password = normalizeAppPassword(app_password);
 
-    if (!email_address || !app_password) {
+    if (!email || !password) {
       return res
         .status(400)
         .json({ message: ERROR_MESSAGES.MISSING_CREDENTIALS });
     }
 
-    const client = createImapClient(email_address, app_password);
+    const client = createImapClient(email, password);
 
     try {
       await client.connect();

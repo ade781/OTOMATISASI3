@@ -20,23 +20,35 @@ export const sanitizeInput = (input) => {
   
   // Escape HTML entities
   cleaned = validator.escape(cleaned);
+  // Slash is common in Indonesian text (dan/atau, PNS/P3K) and does not need escaping.
+  cleaned = cleaned.replace(/&#x2F;/gi, '/');
   
   return cleaned.trim();
 }
 
+const shouldPreserveRawString = (path) => {
+  const normalized = path.map((part) => (Number.isInteger(part) ? '*' : part));
+  const last = normalized[normalized.length - 1];
+  const isAttachmentField = normalized.includes('attachments') || normalized.includes('attachments_data');
+
+  return isAttachmentField && ['content', 'contentType', 'encoding'].includes(last);
+};
+
 /**
  * Sanitize object recursively
  */
-export const sanitizeObject = (obj) => {
+export const sanitizeObject = (obj, path = []) => {
   if (!obj || typeof obj !== 'object') return obj;
   
   const sanitized = Array.isArray(obj) ? [] : {};
   
   for (const [key, value] of Object.entries(obj)) {
+    const nextPath = [...path, Array.isArray(obj) ? Number(key) : key];
+
     if (typeof value === 'string') {
-      sanitized[key] = sanitizeInput(value);
+      sanitized[key] = shouldPreserveRawString(nextPath) ? value : sanitizeInput(value);
     } else if (typeof value === 'object' && value !== null) {
-      sanitized[key] = sanitizeObject(value);
+      sanitized[key] = sanitizeObject(value, nextPath);
     } else {
       sanitized[key] = value;
     }

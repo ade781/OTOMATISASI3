@@ -1,7 +1,24 @@
 import axios from "axios";
 
+const resolveApiBaseUrl = () => {
+  const fromEnv = (import.meta.env.VITE_API_URL || "").trim();
+  if (fromEnv) return fromEnv;
+
+  if (typeof window !== "undefined") {
+    const { protocol, hostname, port, origin } = window.location;
+    // Vite dev default: FE 5173, BE 5000
+    if (port === "5173") {
+      return `${protocol}//${hostname}:5000`;
+    }
+    // Production default: same-origin via reverse proxy
+    return origin;
+  }
+
+  return "http://localhost:5000";
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000",
+  baseURL: resolveApiBaseUrl(),
   withCredentials: true,
 });
 
@@ -9,13 +26,33 @@ let csrfTokenCache = "";
 let isRefreshing = false;
 let failedQueue = [];
 
+const getRequestPath = (url = "") => {
+  try {
+    return new URL(url, api.defaults.baseURL).pathname;
+  } catch {
+    return String(url);
+  }
+};
+
+const isAuthEndpoint = (url = "") => {
+  const path = getRequestPath(url);
+  return path.startsWith("/auth/");
+};
+
+const notifyUnauthorized = () => {
+  clearCsrfToken();
+  localStorage.removeItem("user");
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("auth:unauthorized"));
+  }
+};
+
 const fetchCsrfToken = async () => {
   try {
     const { data } = await api.get("/auth/csrf");
     csrfTokenCache = data?.csrfToken || "";
     return csrfTokenCache;
   } catch (error) {
-    console.error("Failed to fetch CSRF token:", error);
     csrfTokenCache = "";
     return "";
   }
@@ -75,11 +112,19 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    const requestIsAuthEndpoint = isAuthEndpoint(originalRequest.url);
 
     if (error.response?.status === 403) {
       const errorCode = error.response?.data?.code;
 
-      if (errorCode === "CSRF_MISSING" || errorCode === "CSRF_MISMATCH") {
+      if (
+        !requestIsAuthEndpoint &&
+        (errorCode === "CSRF_MISSING" || errorCode === "CSRF_MISMATCH")
+      ) {
         try {
           await fetchCsrfToken();
           return api(originalRequest);
@@ -89,7 +134,11 @@ api.interceptors.response.use(
       }
     }
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      !requestIsAuthEndpoint &&
+      !originalRequest._retry
+    ) {
       originalRequest._retry = true;
 
       if (isRefreshing) {
@@ -116,11 +165,13 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError);
         isRefreshing = false;
-        clearCsrfToken();
-        localStorage.removeItem("user");
-        window.location.href = "/login";
+        notifyUnauthorized();
         return Promise.reject(refreshError);
       }
+    }
+
+    if (error.response?.status === 401 && !requestIsAuthEndpoint) {
+      notifyUnauthorized();
     }
 
     return Promise.reject(error);
@@ -128,4 +179,4 @@ api.interceptors.response.use(
 );
 
 export default api;
-export { fetchCsrfToken, clearCsrfToken, updateCsrfToken };
+export { fetchCsrfToken, clearCsrfToken, updateCsrfToken, notifyUnauthorized };

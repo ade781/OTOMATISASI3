@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import api, { updateCsrfToken, clearCsrfToken } from '../services/api';
+import api, { updateCsrfToken, clearCsrfToken, fetchCsrfToken } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -20,11 +20,35 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      setUser(JSON.parse(savedUser));
+      const csrfToken = await fetchCsrfToken();
+      if (!csrfToken) {
+        clearCsrfToken();
+        localStorage.removeItem('user');
+        setUser(null);
+        setIsInitializing(false);
+        return;
+      }
+
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch {
+        localStorage.removeItem('user');
+        setUser(null);
+      }
       setIsInitializing(false);
     };
 
     restoreSession();
+  }, []);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      clearCsrfToken();
+      setUser(null);
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, []);
 
   const login = async (username, password, turnstileToken) => {

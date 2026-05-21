@@ -6,8 +6,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import bcrypt from "bcryptjs";
 
-import {db} from "./src/models/index.js";
-import {User} from "./src/models/index.js";
+import { db } from "./src/models/index.js";
+import { User } from "./src/models/index.js";
 
 import authRoutes from "./src/routes/authRoutes.js";
 import configRoutes from "./src/routes/configRoutes.js";
@@ -32,6 +32,20 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const rawClientUrls = process.env.CLIENT_URLS || process.env.CLIENT_URL || "";
+const configuredClientUrls = rawClientUrls
+  .split(",")
+  .map((item) => item.trim())
+  .filter(Boolean);
+const normalizeOrigin = (value) => String(value || "").replace(/\/$/, "");
+const configuredClientOrigins = configuredClientUrls.map(normalizeOrigin);
+const parseHostname = (value) => {
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return "";
+  }
+};
 // __dirname replacement untuk ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,9 +57,11 @@ app.use(
       directives: {
         defaultSrc: ["'self'"],
 
-        // Turnstile membutuhkan script dari challenges.cloudflare.com
+        // Turnstile + inline scripts dari React/Vite
         scriptSrc: [
           "'self'",
+          "'unsafe-inline'",
+          "'wasm-unsafe-eval'",
           "https://challenges.cloudflare.com",
         ],
 
@@ -61,7 +77,7 @@ app.use(
         connectSrc: [
           "'self'",
           "https://challenges.cloudflare.com",
-          process.env.CLIENT_URL,
+          ...configuredClientOrigins,
           // jika FE dan BE beda origin, tambahkan API domain Anda di sini (bukan CLIENT_URL FE)
           // "https://api.example.com",
         ],
@@ -83,13 +99,65 @@ app.use(
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
     // Allow assets (uploads) to be loaded from different origin (frontend dev server)
     crossOriginResourcePolicy: { policy: "cross-origin" },
+    // Permissions policy untuk XR spatial tracking dan features lain
+    permissionsPolicy: {
+      "xr-spatial-tracking": [],
+      "geolocation": [],
+      "microphone": [],
+      "camera": [],
+    },
   })
 );
 
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173', // URL frontend Vite
-  credentials: true // WAJIB untuk cookie
-}));
+const getRequestHostname = (req) => {
+  const rawHost =
+    (req.headers["x-forwarded-host"] || req.headers.host || "")
+      .toString()
+      .split(",")[0]
+      .trim();
+  return rawHost.split(":")[0];
+};
+
+const isAllowedOrigin = (origin, req) => {
+  if (!origin) return true;
+  const normalizedOrigin = normalizeOrigin(origin);
+
+  // Exact match dengan daftar origin dari env (CLIENT_URL / CLIENT_URLS)
+  if (configuredClientOrigins.includes(normalizedOrigin)) return true;
+
+  // Allow localhost variants
+  if (
+    normalizedOrigin === "http://localhost:5173" ||
+    normalizedOrigin === "http://127.0.0.1:5173"
+  ) {
+    return true;
+  }
+
+  // Allow GitHub Codespaces origin pattern: https://<slug>-5173.app.github.dev
+  if (/^https:\/\/.+\.app\.github\.dev(:\d+)?$/i.test(normalizedOrigin)) {
+    return true;
+  }
+
+  // Allow same hostname (beda port/domain path) agar tidak perlu ganti env tiap server
+  const originHostname = parseHostname(normalizedOrigin);
+  const reqHostname = getRequestHostname(req);
+  if (originHostname && reqHostname && originHostname === reqHostname) {
+    return true;
+  }
+
+  return false;
+};
+
+app.use(
+  cors((req, callback) => {
+    const requestOrigin = req.header("Origin");
+    const allowed = isAllowedOrigin(requestOrigin, req);
+    if (!allowed && requestOrigin) {
+      console.warn(`[CORS] Blocked origin: ${requestOrigin}`);
+    }
+    callback(null, { origin: allowed, credentials: true });
+  })
+);
 app.use(
   express.json({
     limit: "25mb", // naikkan limit agar lampiran base64 tidak ditolak

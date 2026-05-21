@@ -12,7 +12,6 @@ import emailEventBus from "../utils/eventBus.js";
 // Constants
 const ATTACHMENT_LIMIT_BYTES = 2 * 1024 * 1024;
 const SSE_HEARTBEAT_INTERVAL = 25000;
-
 // Helper functions
 const isValidEmail = (email) => {
   if (!email) return false;
@@ -53,6 +52,18 @@ const toHtml = (val) => {
   return escapeHtml(val).replace(/\n/g, "<br/>");
 };
 
+const restoreEscapedTextValue = (val) => {
+  if (val == null) return "";
+  return String(val).replace(/&#x2F;/gi, "/");
+};
+
+const restoreEscapedAttachmentValue = (val) => {
+  if (val == null) return val;
+  return String(val)
+    .replace(/&#x2F;/gi, "/")
+    .replace(/&amp;/g, "&");
+};
+
 const normalizeAttachments = (attachments) => {
   if (!Array.isArray(attachments)) return [];
 
@@ -60,9 +71,9 @@ const normalizeAttachments = (attachments) => {
     .filter((a) => a?.filename && a?.content)
     .map((a) => ({
       filename: a.filename,
-      content: a.content,
-      encoding: a.encoding || "base64",
-      contentType: a.contentType,
+      content: restoreEscapedAttachmentValue(a.content),
+      encoding: restoreEscapedAttachmentValue(a.encoding || "base64"),
+      contentType: restoreEscapedAttachmentValue(a.contentType),
     }));
 };
 
@@ -114,10 +125,11 @@ const renderTemplate = (template, target, meta, isBody = false) => {
   if (!template) return "";
 
   const replacements = buildReplacements(target, meta);
-  let output = template.replace(
+  let output = restoreEscapedTextValue(template).replace(
     /{{\s*([\w.]+)\s*}}/g,
     (_, key) => replacements[key] ?? ""
   );
+  output = restoreEscapedTextValue(output);
 
   return isBody ? output.replace(/\n/g, "<br/>") : output;
 };
@@ -149,13 +161,27 @@ const emitLog = async (logId) => {
 };
 
 const createTransporter = (smtpConfig) => {
+  const email = String(smtpConfig.email_address || "").trim();
+  const appPassword = String(smtpConfig.app_password || "").replace(/\s+/g, "");
+
   return nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    requireTLS: true,
     auth: {
-      user: smtpConfig.email_address,
-      pass: smtpConfig.app_password,
+      user: email,
+      pass: appPassword,
     },
   });
+};
+
+const getSmtpErrorMessage = (err) => {
+  if (err?.code === "ESOCKET" || err?.code === "ECONNECTION") {
+    return "Koneksi SMTP Gmail gagal dari server. Coba lagi atau cek jaringan/firewall; aplikasi memakai smtp.gmail.com port 587.";
+  }
+
+  return "Login SMTP gagal. Periksa email + App Password Gmail, pastikan 2FA aktif dan App Password benar.";
 };
 
 const verifySmtpConnection = async (transporter) => {
@@ -165,8 +191,7 @@ const verifySmtpConnection = async (transporter) => {
   } catch (err) {
     return {
       success: false,
-      message:
-        "Login SMTP gagal. Periksa email + App Password Gmail, pastikan 2FA aktif dan IMAP diaktifkan.",
+      message: getSmtpErrorMessage(err),
       detail: err.message,
     };
   }
@@ -245,15 +270,8 @@ const sendBulkEmail = async (req, res) => {
       return res.status(400).json({ message: quotaCheck.message });
     }
 
-    // Verify SMTP
+    // Build SMTP transporter. SendMail itself will validate the saved credentials.
     const transporter = createTransporter(smtpConfig);
-    const smtpVerification = await verifySmtpConnection(transporter);
-    if (!smtpVerification.success) {
-      return res.status(400).json({
-        message: smtpVerification.message,
-        detail: smtpVerification.detail,
-      });
-    }
 
     // Process attachments
     const safeAttachments = normalizeAttachments(attachments);
@@ -372,15 +390,6 @@ const sendBulkEmail = async (req, res) => {
       } catch (err) {
         console.error(err);
 
-        if (err?.code === "EAUTH" || err?.responseCode === 535) {
-          return res.status(400).json({
-            message:
-              "Login SMTP gagal. Periksa email + App Password Gmail, pastikan 2FA aktif dan IMAP diaktifkan.",
-            detail: err.message,
-            results,
-          });
-        }
-
         await createEmailLog({
           user_id: userId,
           badan_publik_id: target.id,
@@ -397,7 +406,7 @@ const sendBulkEmail = async (req, res) => {
         results.push({
           id: target.id,
           status: "failed",
-          reason: `Gagal mengirim email: ${err.message || "unknown"}`,
+          reason: getSmtpErrorMessage(err),
         });
       }
     }
@@ -448,8 +457,6 @@ const streamEmailLogs = async (req, res) => {
     "Cache-Control": "no-cache, no-transform",
     "Connection": "keep-alive",
     "X-Accel-Buffering": "no", // Disable nginx buffering
-    "Access-Control-Allow-Origin": process.env.CLIENT_URL || 'http://localhost:5173',
-    "Access-Control-Allow-Credentials": "true",
   });
   
   // Disable timeout untuk SSE
