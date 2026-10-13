@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import { ImapFlow } from "imapflow";
 import { SmtpConfig } from "../models/index.js";
+import { encrypt, decrypt } from "../utils/crypto.js";
 
 // Constants
 const GMAIL_SMTP_CONFIG = {
@@ -63,7 +64,7 @@ const getStoredCredentials = async (userId) => {
 
   return {
     email: config.email_address,
-    password: config.app_password,
+    password: decrypt(config.app_password),
   };
 };
 
@@ -83,7 +84,7 @@ const saveSmtpConfig = async (req, res) => {
     await SmtpConfig.upsert({
       user_id: req.user.id,
       email_address: email,
-      app_password: password,
+      app_password: encrypt(password),
     });
 
     return res.json({ message: "Konfigurasi SMTP tersimpan" });

@@ -8,6 +8,7 @@ import {
   Assignment,
 } from "../models/index.js";
 import emailEventBus from "../utils/eventBus.js";
+import { decrypt } from "../utils/crypto.js";
 
 // Constants
 const ATTACHMENT_LIMIT_BYTES = 2 * 1024 * 1024;
@@ -162,7 +163,8 @@ const emitLog = async (logId) => {
 
 const createTransporter = (smtpConfig) => {
   const email = String(smtpConfig.email_address || "").trim();
-  const appPassword = String(smtpConfig.app_password || "").replace(/\s+/g, "");
+  const rawPassword = decrypt(smtpConfig.app_password);
+  const appPassword = String(rawPassword || "").replace(/\s+/g, "");
 
   return nodemailer.createTransport({
     host: "smtp.gmail.com",
