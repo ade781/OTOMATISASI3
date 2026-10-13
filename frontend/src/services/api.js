@@ -53,6 +53,18 @@ const fetchCsrfToken = async () => {
     csrfTokenCache = data?.csrfToken || "";
     return csrfTokenCache;
   } catch (error) {
+    // If unauthorized (e.g. accessToken expired), attempt refresh before giving up
+    if (error.response?.status === 401) {
+      try {
+        const { data: refreshData } = await api.post("/auth/refresh", {});
+        if (refreshData?.csrfToken) {
+          csrfTokenCache = refreshData.csrfToken;
+          return csrfTokenCache;
+        }
+      } catch (_refreshError) {
+        // Refresh token is also expired or invalid
+      }
+    }
     csrfTokenCache = "";
     return "";
   }

@@ -20,7 +20,19 @@ export const AuthProvider = ({ children }) => {
         return;
       }
 
-      const csrfToken = await fetchCsrfToken();
+      let csrfToken = await fetchCsrfToken();
+      if (!csrfToken) {
+        try {
+          const { data } = await api.post('/auth/refresh', {});
+          if (data?.csrfToken) {
+            updateCsrfToken(data.csrfToken);
+            csrfToken = data.csrfToken;
+          }
+        } catch (_refreshErr) {
+          // Token refresh failed or expired
+        }
+      }
+
       if (!csrfToken) {
         clearCsrfToken();
         localStorage.removeItem('user');
