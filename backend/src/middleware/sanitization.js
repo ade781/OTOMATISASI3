@@ -11,17 +11,12 @@ const DOMPurify = createDOMPurify(window);
 export const sanitizeInput = (input) => {
   if (typeof input !== 'string') return input;
   
-  // Remove all HTML tags
-  let cleaned = DOMPurify.sanitize(input, {
+  // Strip malicious HTML tags and scripts while preserving natural text symbols (&, ', ", <, > when part of plain text)
+  const cleaned = DOMPurify.sanitize(input, {
     ALLOWED_TAGS: [],
     ALLOWED_ATTR: [],
     KEEP_CONTENT: true,
   });
-  
-  // Escape HTML entities
-  cleaned = validator.escape(cleaned);
-  // Slash is common in Indonesian text (dan/atau, PNS/P3K) and does not need escaping.
-  cleaned = cleaned.replace(/&#x2F;/gi, '/');
   
   return cleaned.trim();
 };
