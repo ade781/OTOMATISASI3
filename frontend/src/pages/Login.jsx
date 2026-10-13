@@ -16,7 +16,10 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!turnstileToken) return alert("Selesaikan Turnstile dulu.");
+    if (!turnstileToken) {
+      setError("Selesaikan verifikasi keamanan (Turnstile) terlebih dahulu.");
+      return;
+    }
     setError('');
     const result = await login(username, password, turnstileToken);
     if (result.success) {
@@ -89,11 +92,15 @@ const Login = () => {
               />
             </div>
             <TurnstileWidget ref={turnstileRef} siteKey={siteKey} onToken={setTurnstileToken} />
-            {error && <div className="text-sm text-rose-500">{error}</div>}
+            {error && (
+              <div className="text-sm text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3">
+                {error}
+              </div>
+            )}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-slate-900 text-white py-3 rounded-xl font-semibold shadow-soft hover:bg-slate-800 disabled:opacity-60"
+              className="w-full bg-slate-900 text-white py-3 rounded-xl font-semibold shadow-soft hover:bg-slate-800 disabled:opacity-60 transition"
             >
               {loading ? 'Memproses...' : 'Masuk'}
             </button>
