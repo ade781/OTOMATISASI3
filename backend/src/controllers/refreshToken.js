@@ -9,6 +9,8 @@ import {
   clearCsrfCookie,
 } from "../utils/cookies.js";
 
+const ROTATION_GRACE_PERIOD_MS = 30000; // 30 detik untuk multi-tab / simultaneous refresh
+
 export const refreshToken = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
@@ -22,12 +24,27 @@ export const refreshToken = async (req, res) => {
       });
     }
 
-    clearRefreshCookie(res);
-    clearAccessCookie(res);
     const refreshHash = hashRefreshToken(refreshToken);
-    const user = await User.findOne({
+    let user = await User.findOne({
       where: { refresh_token_hash: refreshHash },
     });
+
+    let isGracePeriodReuse = false;
+    // Pengecekan grace period jika token baru saja dirotasi oleh request lain / tab lain
+    if (!user) {
+      const graceUser = await User.findOne({
+        where: { prev_refresh_token_hash: refreshHash },
+      });
+
+      if (
+        graceUser &&
+        graceUser.refresh_rotated_at &&
+        Date.now() - new Date(graceUser.refresh_rotated_at).getTime() < ROTATION_GRACE_PERIOD_MS
+      ) {
+        user = graceUser;
+        isGracePeriodReuse = true;
+      }
+    }
 
     if (!user) {
       clearAllAuthCookies(res);
@@ -43,6 +60,7 @@ export const refreshToken = async (req, res) => {
     ) {
       await user.update({
         refresh_token_hash: null,
+        prev_refresh_token_hash: null,
         refresh_expires_at: null,
         refresh_rotated_at: new Date(),
       });
@@ -59,11 +77,18 @@ export const refreshToken = async (req, res) => {
       { expiresIn: "15m" }
     );
 
+    if (isGracePeriodReuse) {
+      // Jika dalam grace period, cukup perbarui accessToken tanpa membatalkan token yang sedang aktif
+      setAccessCookie(res, accessToken);
+      return res.json({ success: true, grace: true });
+    }
+
     const newRefreshToken = generateRefreshToken();
     const newRefreshHash = hashRefreshToken(newRefreshToken);
     const newRefreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     await user.update({
+      prev_refresh_token_hash: user.refresh_token_hash,
       refresh_token_hash: newRefreshHash,
       refresh_expires_at: newRefreshExpiresAt,
       refresh_rotated_at: new Date(),

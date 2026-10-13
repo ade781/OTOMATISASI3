@@ -45,6 +45,10 @@ const User = db.define(
       type: Sequelize.STRING(128),
       allowNull: true,
     },
+    prev_refresh_token_hash: {
+      type: Sequelize.STRING(128),
+      allowNull: true,
+    },
     refresh_expires_at: {
       type: Sequelize.DATE,
       allowNull: true,

@@ -29,10 +29,10 @@ const csrf = async (req, res) => {
     const existing = req.cookies?.csrfToken;
     if (existing) {
       return res.status(200).json({ csrfToken: existing });
-    }else {
-    const token = await generateCsrfToken();
-    setCsrfCookie(res, token);
-    return res.status(200).json({ csrfToken: token });
+    } else {
+      const token = await generateCsrfToken();
+      setCsrfCookie(res, token);
+      return res.status(200).json({ csrfToken: token });
     }
   } catch (error) {
     console.error('CSRF generation error:', error);
@@ -68,6 +68,7 @@ const login = async (req, res) => {
       password: _p,
       refresh_token: _rt,
       refresh_token_hash: _rh,
+      prev_refresh_token_hash: _prh,
       refresh_expires_at: _re,
       ...safeUserData
     } = userPlain;
@@ -84,6 +85,7 @@ const login = async (req, res) => {
 
     await user.update({
       refresh_token_hash: refreshHash,
+      prev_refresh_token_hash: null,
       refresh_expires_at: refreshExpiresAt,
       refresh_rotated_at: new Date(),
     });
@@ -129,6 +131,7 @@ const logout = async (req, res) => {
     await User.update(
       {
         refresh_token_hash: null,
+        prev_refresh_token_hash: null,
         refresh_expires_at: null,
         refresh_rotated_at: new Date(),
       },
@@ -144,7 +147,7 @@ const logout = async (req, res) => {
   } catch (error) {
     console.error('Logout error:', error);
     return res.status(500).json({ 
-      status: 'error',
+      status: 'error', 
       message: 'Logout failed' 
     });
   }
