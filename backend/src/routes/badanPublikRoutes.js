@@ -7,7 +7,8 @@ import {
   deleteBadanPublik,
   deleteBadanPublikBulk,
   importBadanPublik,
-  importBadanPublikWithAssignment
+  importBadanPublikWithAssignment,
+  updateBadanPublikMonitoring
 } from '../controllers/badanPublikController.js';
 import { verifyToken } from '../middleware/verifyToken.js';
 import { checkRole } from '../middleware/checkRole.js';
@@ -21,6 +22,7 @@ router.use(verifyToken, requireCsrfForUnsafeMethods);
 router.get('/', listBadanPublik);
 router.get('/:id', getBadanPublik);
 router.put('/:id', updateBadanPublik);
+router.patch('/:id/monitoring', updateBadanPublikMonitoring);
 
 // Admin endpoints
 router.post('/', checkRole('admin'), createBadanPublik);

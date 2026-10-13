@@ -653,6 +653,64 @@ const importBadanPublikWithAssignment = async (req, res) => {
   }
 };
 
+const updateBadanPublikMonitoring = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = await BadanPublik.findByPk(id);
+
+    if (!data) {
+      return res.status(404).json({ message: "Data tidak ditemukan" });
+    }
+
+    if (req.user.role !== "admin") {
+      const assigned = await Assignment.findOne({
+        where: { user_id: req.user.id, badan_publik_id: id },
+      });
+      if (!assigned) {
+        return res
+          .status(403)
+          .json({ message: "Akses ditolak: bukan penugasan Anda" });
+      }
+    }
+
+    const {
+      startDate,
+      monitoring_start_date,
+      status,
+      monitoring_status,
+      extraDays,
+      monitoring_extra_days,
+      respondedAt,
+      monitoring_responded_at,
+      closedAt,
+      monitoring_closed_at,
+    } = req.body;
+
+    const payload = {};
+    if (startDate !== undefined || monitoring_start_date !== undefined) {
+      payload.monitoring_start_date = startDate || monitoring_start_date || null;
+    }
+    if (status !== undefined || monitoring_status !== undefined) {
+      payload.monitoring_status = status || monitoring_status || "menunggu";
+    }
+    if (extraDays !== undefined || monitoring_extra_days !== undefined) {
+      payload.monitoring_extra_days = Boolean(extraDays ?? monitoring_extra_days);
+    }
+    if (respondedAt !== undefined || monitoring_responded_at !== undefined) {
+      payload.monitoring_responded_at = respondedAt || monitoring_responded_at || null;
+    }
+    if (closedAt !== undefined || monitoring_closed_at !== undefined) {
+      payload.monitoring_closed_at = closedAt || monitoring_closed_at || null;
+    }
+
+    await data.update(payload);
+    return res.json({ message: "Monitoring diperbarui", data });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Gagal memperbarui monitoring" });
+  }
+};
+
 export {
   listBadanPublik,
   getBadanPublik,

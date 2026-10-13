@@ -181,6 +181,7 @@ const DashboardPage = () => {
         });
         setBadan(badanData);
         setSentHistoryMap(historyMap);
+        setMonitoringMap(getMonitoringMap(badanData));
       } catch (err) {
         console.error(err);
       } finally {
@@ -265,6 +266,10 @@ const DashboardPage = () => {
   };
 
   const updateMonitoring = useCallback((id, updates) => {
+    api.patch(`/badan-publik/${id}/monitoring`, updates).catch((err) => {
+      console.error('Gagal simpan monitoring ke server:', err);
+    });
+
     setMonitoringMap((prev) => {
       const next = {
         ...prev,

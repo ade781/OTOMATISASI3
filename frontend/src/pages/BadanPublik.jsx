@@ -177,7 +177,9 @@ const BadanPublik = () => {
     setLoading(true);
     try {
       const res = await api.get('/badan-publik');
-      setData(res.data || []);
+      const badanList = res.data || [];
+      setData(badanList);
+      setMonitoringMap(getMonitoringMap(badanList));
     } catch (err) {
       console.error(err);
     } finally {
@@ -801,6 +803,10 @@ const BadanPublik = () => {
   };
 
   const updateMonitoring = (id, updates) => {
+    api.patch(`/badan-publik/${id}/monitoring`, updates).catch((err) => {
+      console.error('Gagal simpan monitoring ke server:', err);
+    });
+
     setMonitoringMap((prev) => {
       const next = {
         ...prev,

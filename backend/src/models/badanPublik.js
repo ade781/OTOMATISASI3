@@ -48,6 +48,31 @@ const BadanPublik = db.define("BadanPublik", {
     allowNull: false,
     defaultValue: 0,
   },
+  monitoring_start_date: {
+    type: Sequelize.DATEONLY,
+    allowNull: true,
+    defaultValue: null,
+  },
+  monitoring_status: {
+    type: Sequelize.STRING,
+    allowNull: false,
+    defaultValue: "menunggu",
+  },
+  monitoring_extra_days: {
+    type: Sequelize.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  monitoring_responded_at: {
+    type: Sequelize.DATE,
+    allowNull: true,
+    defaultValue: null,
+  },
+  monitoring_closed_at: {
+    type: Sequelize.DATE,
+    allowNull: true,
+    defaultValue: null,
+  },
 }, {
   tableName: "BadanPublik",
 });
