@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../services/api';
 import { getApiTemplates } from '../../services/templateService';
+import { EventSourcePolyfill } from 'event-source-polyfill';
 import { useAuth } from '../../context/AuthContext';
 import { useSmtp } from '../../context/SmtpContext';
 import StatsGrid from './StatsGrid';
@@ -492,14 +493,37 @@ const DashboardPage = () => {
     setSending(true);
     setSendStats({ total: selectedIds.length, success: 0, failed: 0 });
     setSendProgress(5);
-    if (sendTimerRef.current) clearInterval(sendTimerRef.current);
-    sendTimerRef.current = setInterval(() => {
-      setSendProgress((prev) => {
-        if (prev >= 90) return prev;
-        const bump = Math.random() * 8 + 2;
-        return Math.min(90, prev + bump);
+    // Setup real-time progress stream via SSE
+    let es = null;
+    let completedCount = 0;
+    let realSuccess = 0;
+    let realFailed = 0;
+    const totalTargets = selectedIds.length;
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      const streamUrl = `${baseUrl}/email/stream?userId=${user?.id}&username=${encodeURIComponent(user?.username || '')}`;
+      es = new EventSourcePolyfill(streamUrl, {
+        withCredentials: true,
+        heartbeatTimeout: 300000,
       });
-    }, 500);
+      es.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data && selectedIds.includes(data.badan_publik_id)) {
+            completedCount += 1;
+            if (data.status === 'success') realSuccess += 1;
+            else realFailed += 1;
+            const pct = Math.min(95, Math.round((completedCount / totalTargets) * 100));
+            setSendProgress(pct);
+            setSendStats({ total: totalTargets, success: realSuccess, failed: realFailed });
+          }
+        } catch (e) {
+          // ignore
+        }
+      };
+    } catch (sseErr) {
+      console.warn('Progress SSE init skipped:', sseErr);
+    }
     try {
       const payload = {
         badan_publik_ids: selectedIds,
@@ -560,6 +584,13 @@ const DashboardPage = () => {
       setStatusMessage(err.response?.data?.message || 'Gagal mengirim email');
       setSendStats(null);
     } finally {
+      if (es) {
+        try {
+          es.close();
+        } catch (closeErr) {
+          // ignore
+        }
+      }
       if (sendTimerRef.current) {
         clearInterval(sendTimerRef.current);
         sendTimerRef.current = null;
