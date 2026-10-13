@@ -24,14 +24,31 @@ export const sanitizeInput = (input) => {
   cleaned = cleaned.replace(/&#x2F;/gi, '/');
   
   return cleaned.trim();
-}
+};
 
 const shouldPreserveRawString = (path) => {
   const normalized = path.map((part) => (Number.isInteger(part) ? '*' : part));
-  const last = normalized[normalized.length - 1];
+  const last = String(normalized[normalized.length - 1] || '').toLowerCase();
   const isAttachmentField = normalized.includes('attachments') || normalized.includes('attachments_data');
 
-  return isAttachmentField && ['content', 'contentType', 'encoding'].includes(last);
+  if (isAttachmentField && ['content', 'contentType', 'encoding'].includes(last)) {
+    return true;
+  }
+
+  // Preserve raw password fields so hashing/bcrypt retains exact characters and whitespace entropy
+  const isPasswordField = [
+    'password',
+    'newpassword',
+    'currentpassword',
+    'confirmpassword',
+    'app_password',
+  ].includes(last);
+
+  if (isPasswordField) {
+    return true;
+  }
+
+  return false;
 };
 
 /**
@@ -55,18 +72,33 @@ export const sanitizeObject = (obj, path = []) => {
   }
   
   return sanitized;
-}
+};
 
 /**
- * Express middleware untuk sanitize request body
+ * Express middleware untuk sanitize request body, query, dan params
  */
 export const sanitizeMiddleware = (req, res, next) => {
+  const dangerous = ['<script', 'javascript:', 'onerror=', 'onload=', '<iframe'];
+
+  if (req.query) {
+    for (const value of Object.values(req.query)) {
+      if (typeof value === 'string') {
+        const lowerValue = value.toLowerCase();
+        for (const danger of dangerous) {
+          if (lowerValue.includes(danger)) {
+            return res.status(400).json({
+              success: false,
+              message: 'Malicious input detected',
+            });
+          }
+        }
+      }
+    }
+    req.query = sanitizeObject(req.query);
+  }
+
   if (req.body) {
     req.body = sanitizeObject(req.body);
-  }
-  
-  if (req.query) {
-    req.query = sanitizeObject(req.query);
   }
   
   if (req.params) {
@@ -77,27 +109,6 @@ export const sanitizeMiddleware = (req, res, next) => {
 };
 
 /**
- * Sanitize khusus untuk query parameters
+ * Backward compatibility alias (now handled inside sanitizeMiddleware)
  */
-export const sanitizeQueryParams = (req, res, next) => {
-  const dangerous = ['<script', 'javascript:', 'onerror=', 'onload=', '<iframe'];
-  
-  for (const [key, value] of Object.entries(req.query)) {
-    if (typeof value === 'string') {
-      const lowerValue = value.toLowerCase();
-      
-      for (const danger of dangerous) {
-        if (lowerValue.includes(danger)) {
-          return res.status(400).json({
-            success: false,
-            message: 'Malicious input detected',
-          });
-        }
-      }
-      
-      req.query[key] = sanitizeInput(value);
-    }
-  }
-  
-  next();
-};
+export const sanitizeQueryParams = (req, res, next) => next();
