@@ -167,6 +167,9 @@ const BadanPublik = () => {
   const [importAssignSimulated, setImportAssignSimulated] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   const [emailFilter, setEmailFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [holidays, setHolidays] = useState([]);
   const [monitoringMap, setMonitoringMap] = useState(() => getMonitoringMap());
 
@@ -201,14 +204,35 @@ const BadanPublik = () => {
 
   const samplePreview = useMemo(() => data.slice(0, 3), [data]);
   const filteredData = useMemo(() => {
-    if (emailFilter === 'with-email') return data.filter((d) => d.email);
-    if (emailFilter === 'no-email') return data.filter((d) => !d.email);
-    return data;
-  }, [data, emailFilter]);
+    let result = data;
+    if (emailFilter === 'with-email') result = result.filter((d) => d.email);
+    else if (emailFilter === 'no-email') result = result.filter((d) => !d.email);
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter((d) =>
+        (d.nama_badan_publik && d.nama_badan_publik.toLowerCase().includes(q)) ||
+        (d.kategori && d.kategori.toLowerCase().includes(q)) ||
+        (d.email && d.email.toLowerCase().includes(q)) ||
+        (d.website && d.website.toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }, [data, emailFilter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredData.slice(start, start + pageSize);
+  }, [filteredData, currentPage, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [emailFilter, searchQuery]);
 
   useEffect(() => {
     setSelectedIds([]);
-  }, [data, emailFilter]);
+  }, [data, emailFilter, searchQuery]);
 
   const openForm = (item) => {
     // Admin bisa tambah/edit; user hanya boleh edit data yang sudah ada (misal koreksi email)
@@ -309,11 +333,13 @@ const BadanPublik = () => {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === filteredData.length) {
-      setSelectedIds([]);
-      return;
+    const pageIds = paginatedData.map((item) => item.id);
+    const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.includes(id));
+    if (allPageSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+    } else {
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...pageIds])));
     }
-    setSelectedIds(filteredData.map((item) => item.id));
   };
 
   const performBulkDelete = async (ids) => {
@@ -834,13 +860,13 @@ const BadanPublik = () => {
       )}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-soft">
-        <div className="flex flex-wrap items-center gap-3 px-4 pt-4 text-sm text-slate-600">
-          <span className="text-xs uppercase tracking-[0.08em] text-slate-500">Filter cepat</span>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 text-sm text-slate-600">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs uppercase tracking-[0.08em] text-slate-500 font-semibold mr-1">Filter:</span>
             <button
               onClick={() => setEmailFilter('all')}
               className={`px-3 py-1.5 rounded-full border text-xs font-semibold ${
-                emailFilter === 'all' ? 'bg-primary text-white border-primary' : 'border-slate-200 text-slate-700'
+                emailFilter === 'all' ? 'bg-primary text-white border-primary' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
               Semua
@@ -848,7 +874,7 @@ const BadanPublik = () => {
             <button
               onClick={() => setEmailFilter('with-email')}
               className={`px-3 py-1.5 rounded-full border text-xs font-semibold ${
-                emailFilter === 'with-email' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'border-slate-200 text-slate-700'
+                emailFilter === 'with-email' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
               Punya email
@@ -856,15 +882,37 @@ const BadanPublik = () => {
             <button
               onClick={() => setEmailFilter('no-email')}
               className={`px-3 py-1.5 rounded-full border text-xs font-semibold ${
-                emailFilter === 'no-email' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'border-slate-200 text-slate-700'
+                emailFilter === 'no-email' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
               Belum ada email
             </button>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
+              {filteredData.length} data ditemukan
+            </span>
           </div>
-          <span className="text-xs px-2 py-1 rounded-full bg-slate-100 border border-slate-200">
-            {filteredData.length} data sesuai filter
-          </span>
+
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Cari nama, email, kategori..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full text-xs pl-8 pr-8 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            />
+            <svg className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-xs">
@@ -875,7 +923,7 @@ const BadanPublik = () => {
                     <input
                       type="checkbox"
                       aria-label="Pilih semua"
-                      checked={filteredData.length > 0 && selectedIds.length === filteredData.length}
+                      checked={paginatedData.length > 0 && paginatedData.every((item) => selectedIds.includes(item.id))}
                       onChange={toggleSelectAll}
                     />
                   </th>
@@ -905,7 +953,7 @@ const BadanPublik = () => {
                   </td>
                 </tr>
               ) : (
-                filteredData.map((item, idx) => (
+                paginatedData.map((item, idx) => (
                   <tr
                     key={item.id}
                     className={`border-t border-slate-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}`}
@@ -920,7 +968,7 @@ const BadanPublik = () => {
                         />
                       </td>
                     )}
-                    <td className="px-3 py-2 text-slate-700">{idx + 1}</td>
+                    <td className="px-3 py-2 text-slate-700">{(currentPage - 1) * pageSize + idx + 1}</td>
                     <td className="px-3 py-2 font-semibold text-slate-900">{truncate(item.nama_badan_publik, 70)}</td>
                     <td className="px-3 py-2 text-slate-700">{truncate(item.kategori, 16)}</td>
                     <td className="px-3 py-2 text-slate-700">
@@ -1003,6 +1051,53 @@ const BadanPublik = () => {
             </tbody>
           </table>
         </div>
+        {filteredData.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 text-xs text-slate-600 bg-slate-50/50 rounded-b-2xl">
+            <div className="flex items-center gap-2">
+              <span>Baris per halaman:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+              <span className="text-slate-400">|</span>
+              <span>
+                Menampilkan {(currentPage - 1) * pageSize + 1} -{' '}
+                {Math.min(currentPage * pageSize, filteredData.length)} dari {filteredData.length} data
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                Sebelumnya
+              </button>
+              <span className="px-3 py-1 font-semibold text-slate-700">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage >= totalPages}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                Berikutnya
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {formOpen && (
