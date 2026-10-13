@@ -27,6 +27,7 @@ import { sanitizeMiddleware, sanitizeQueryParams } from "./src/middleware/saniti
 import logger from "./src/config/logger.js";
 import { requestLogger, errorLogger } from "./src/middleware/requestLogger.js";
 import { extractUserForLogging } from "./src/middleware/extractUserForLogging.js";
+import { verifyToken } from "./src/middleware/verifyToken.js";
 
 dotenv.config();
 
@@ -189,8 +190,25 @@ app.use("/quota", quotaRoutes);
 app.use("/holidays", holidayRoutes);
 app.use("/news", newsRoutes);
 
-// Static files untuk bukti dukung laporan uji akses
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// Static files untuk bukti dukung laporan uji akses (dilindungi autentikasi)
+app.use(
+  "/uploads",
+  (req, res, next) => {
+    const token =
+      req.cookies?.accessToken ||
+      (req.headers["authorization"]
+        ? req.headers["authorization"].split(" ")[1]
+        : null);
+    if (!token) {
+      return res
+        .status(401)
+        .json({ message: "Akses ditolak: file dilindungi autentikasi." });
+    }
+    next();
+  },
+  verifyToken,
+  express.static(path.join(__dirname, "uploads"))
+);
 
 // Modul Laporan Uji Akses
 app.use("/api/reports", ujiAksesReportRoutes);
