@@ -156,7 +156,9 @@ const DashboardPage = () => {
         const logs = logRes.data || [];
 
         const sentCount = badanData.reduce((acc, item) => acc + (item.sent_count || 0), 0);
-        const pendingCount = badanData.filter((item) => item.status === 'pending').length;
+        const pendingCount = badanData.filter(
+          (item) => item.status === 'belum dibalas' || item.status === 'pending'
+        ).length;
 
         const successLogs = logs.filter((l) => l.status === 'success');
         const failedLogs = logs.filter((l) => l.status === 'failed');
