@@ -24,6 +24,16 @@ const HistoryLog = () => {
   const { toast, showToast, clearToast } = useToast();
   const { confirmDialog, openConfirm, closeConfirm, handleConfirm } = useConfirmDialog();
   const [streamStatus, setStreamStatus] = useState('idle');
+  const [reconnectCount, setReconnectCount] = useState(0);
+
+  const handleReconnect = useCallback(async () => {
+    try {
+      await api.post('/auth/refresh');
+    } catch (_err) {
+      // ignore
+    }
+    setReconnectCount((c) => c + 1);
+  }, []);
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   const [retryingId, setRetryingId] = useState(null);
@@ -124,9 +134,16 @@ const HistoryLog = () => {
         setStreamStatus('live');
       };
 
-      es.onerror = (err) => {
+      es.onerror = async (err) => {
         console.error('❌ SSE error:', err);
 
+        if (err?.status === 401) {
+          try {
+            await api.post('/auth/refresh');
+          } catch (_refreshErr) {
+            console.warn('Session expired, cannot refresh SSE token');
+          }
+        }
 
         // Jangan set offline jika sedang reconnecting
         if (es?.readyState === EventSourcePolyfill.CONNECTING) {
@@ -158,7 +175,7 @@ const HistoryLog = () => {
       setStreamStatus('idle');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseUrl, user]); // mergeLog tidak perlu di deps karena sudah useCallback stable
+  }, [baseUrl, user, reconnectCount]); // mergeLog tidak perlu di deps karena sudah useCallback stable
 
   const categories = useMemo(() => {
     const values = logs.map((l) => l.badanPublik?.kategori).filter(Boolean);
@@ -409,6 +426,15 @@ const HistoryLog = () => {
             >
               SSE {streamStatus}
             </span>
+            {streamStatus === 'offline' && (
+              <button
+                type="button"
+                onClick={handleReconnect}
+                className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 transition"
+              >
+                Hubungkan Ulang
+              </button>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
