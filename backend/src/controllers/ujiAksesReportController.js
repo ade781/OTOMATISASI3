@@ -18,7 +18,7 @@ import {
 
 // Constants
 const VALID_STATUSES = ["submitted"];
-const SORT_FIELDS = ["total_skor", "createdAt"];
+const SORT_FIELDS = ["total_skor", "createdAt", "created_at"];
 const DEFAULT_SORT = { field: "createdAt", direction: "DESC" };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -252,9 +252,8 @@ const adminListReports = async (req, res) => {
       ? Number(req.query.badanPublikId)
       : null;
     const statusFilter = req.query.status ? String(req.query.status) : "";
-    const sortBy = SORT_FIELDS.includes(String(req.query.sortBy))
-      ? String(req.query.sortBy)
-      : DEFAULT_SORT.field;
+    const rawSort = String(req.query.sortBy || "");
+    const sortBy = (rawSort === "created_at" || rawSort === "createdAt") ? "createdAt" : (rawSort === "total_skor" ? "total_skor" : DEFAULT_SORT.field);
     const sortDir =
       String(req.query.sortDir).toLowerCase() === "asc" ? "ASC" : "DESC";
 
@@ -477,3 +476,6 @@ export {
   adminDeleteReportsBulk,
   getMyReportByBadanPublik,
 };
+
+
+
