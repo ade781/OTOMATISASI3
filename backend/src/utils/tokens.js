@@ -6,7 +6,9 @@ export const generateRefreshToken = () => {
 };
 
 export const hashRefreshToken = (refreshToken) => {
-  // HMAC supaya kalau DB bocor, attacker tidak dapat token asli
+  if (!refreshToken || typeof refreshToken !== "string") {
+    return null;
+  }
   return crypto
     .createHmac("sha256", process.env.REFRESH_TOKEN_HASH_SECRET)
     .update(refreshToken)

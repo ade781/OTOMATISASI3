@@ -13,6 +13,15 @@ export const refreshToken = async (req, res) => {
   try {
     const refreshToken = req.cookies.refreshToken;
 
+    if (!refreshToken) {
+      clearAllAuthCookies(res);
+      return res.status(401).json({
+        status: "error",
+        code: "REFRESH_TOKEN_MISSING",
+        message: "Refresh token is missing",
+      });
+    }
+
     clearRefreshCookie(res);
     clearAccessCookie(res);
     const refreshHash = hashRefreshToken(refreshToken);
