@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Backend untuk sistem otomasi email lite",
-  "main": "src/server.js",
+  "main": "server.js",
   "scripts": {
-    "dev": "nodemon src/server.js",
-    "start": "node src/server.js",
+    "dev": "nodemon server.js",
+    "start": "node server.js",
     "seed": "node src/seedAdmin.js",
     "migrate:uji-akses": "node src/migrations/001-create-uji-akses-reports.js",
     "logs:clean": "find logs -name '*.log' -mtime +30 -delete"
