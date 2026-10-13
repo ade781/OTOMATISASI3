@@ -9,6 +9,7 @@ import Holiday from "./holiday.js";
 import UjiAksesReport from "./ujiAksesReport.js";
 import UjiAksesQuestion from "./ujiAksesQuestion.js";
 import UjiAksesOption from "./ujiAksesOption.js";
+import EmailTemplate from "./emailTemplate.js";
 
 // Relasi antar model
 
@@ -54,6 +55,9 @@ UjiAksesQuestion.hasMany(UjiAksesOption, {
 });
 UjiAksesOption.belongsTo(UjiAksesQuestion, { foreignKey: "question_id", as: "question" });
 
+User.hasMany(EmailTemplate, { foreignKey: "user_id", as: "templates" });
+EmailTemplate.belongsTo(User, { foreignKey: "user_id", as: "user" });
+
 // Export
 export {
   db,
@@ -67,4 +71,5 @@ export {
   UjiAksesReport,
   UjiAksesQuestion,
   UjiAksesOption,
+  EmailTemplate,
 };

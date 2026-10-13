@@ -6,6 +6,7 @@ import ConfirmDialog from '../components/common/ConfirmDialog';
 import useToast from '../hooks/useToast';
 import useConfirmDialog from '../hooks/useConfirmDialog';
 import SaveTemplateModal from '../components/templateEditor/SaveTemplateModal';
+import { getApiTemplates, saveApiTemplate, deleteApiTemplate } from '../services/templateService';
 
 const MAX_VERSIONS = 10;
 const AUTOSAVE_DELAY = 800;
@@ -38,6 +39,19 @@ const TemplateEditor = () => {
   useEffect(() => {
     const data = readTemplates(roleKey);
     setCustomTemplates(data);
+
+    // Fetch and sync from database API
+    getApiTemplates().then((apiData) => {
+      if (Array.isArray(apiData) && apiData.length > 0) {
+        setCustomTemplates(apiData);
+        try {
+          localStorage.setItem(roleKey, JSON.stringify(apiData));
+        } catch (e) {
+          // ignore
+        }
+      }
+    }).catch(() => {});
+
     if (roleKey !== 'customTemplates') {
       try {
         localStorage.setItem(roleKey, JSON.stringify(data));

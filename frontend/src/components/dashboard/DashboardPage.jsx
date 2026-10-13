@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../services/api';
+import { getApiTemplates } from '../../services/templateService';
 import { useAuth } from '../../context/AuthContext';
 import { useSmtp } from '../../context/SmtpContext';
 import StatsGrid from './StatsGrid';
