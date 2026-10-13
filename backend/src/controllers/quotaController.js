@@ -166,6 +166,12 @@ const updateQuotaRequest = async (req, res) => {
       return res.status(404).json({ message: "Request tidak ditemukan" });
     }
 
+    if (quotaRequest.status !== "pending") {
+      return res.status(400).json({
+        message: `Permintaan kuota sudah diproses sebelumnya (${quotaRequest.status})`,
+      });
+    }
+
     const respondedAt = new Date();
 
     quotaRequest.status = status;
@@ -178,17 +184,13 @@ const updateQuotaRequest = async (req, res) => {
 
     await quotaRequest.save();
 
-    // Apply approved quota
+    // Apply approved quota (hanya tambah daily_quota tanpa mengurangi used_today untuk mencegah kuota ganda)
     if (status === "approved") {
       const user = await User.findByPk(quotaRequest.user_id);
 
       if (user) {
         await resetQuotaIfNeeded(user);
         user.daily_quota += quotaRequest.requested_quota;
-        user.used_today = Math.max(
-          0,
-          user.used_today - quotaRequest.requested_quota
-        );
         await user.save();
       }
     }
