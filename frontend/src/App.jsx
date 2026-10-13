@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -19,7 +20,6 @@ import AdminUjiAksesReportDetail from './pages/AdminUjiAksesReportDetail';
 import UjiAksesQuestionManager from './pages/UjiAksesQuestionManager';
 
 const App = () => {
-
   return (
     <BrowserRouter>
       <Routes>
@@ -31,8 +31,6 @@ const App = () => {
             <Route path="/badan-publik" element={<BadanPublik />} />
             <Route path="/history" element={<HistoryLog />} />
             <Route path="/templates" element={<TemplateEditor />} />
-            <Route path="/penugasan" element={<Penugasan />} />
-            <Route path="/users" element={<AddUser />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/tentang" element={<Tentang />} />
             <Route path="/kalender" element={<HolidayCalendar />} />
@@ -41,9 +39,14 @@ const App = () => {
             <Route path="/laporan/uji-akses/new" element={<UjiAksesReportNew />} />
             <Route path="/laporan/uji-akses/:id" element={<UjiAksesReportDetail />} />
 
-            <Route path="/admin/laporan/uji-akses" element={<AdminUjiAksesReports />} />
-            <Route path="/admin/laporan/uji-akses/:id" element={<AdminUjiAksesReportDetail />} />
-            <Route path="/admin/uji-akses/pertanyaan" element={<UjiAksesQuestionManager />} />
+            {/* Admin-only routes */}
+            <Route element={<AdminRoute />}>
+              <Route path="/penugasan" element={<Penugasan />} />
+              <Route path="/users" element={<AddUser />} />
+              <Route path="/admin/laporan/uji-akses" element={<AdminUjiAksesReports />} />
+              <Route path="/admin/laporan/uji-akses/:id" element={<AdminUjiAksesReportDetail />} />
+              <Route path="/admin/uji-akses/pertanyaan" element={<UjiAksesQuestionManager />} />
+            </Route>
           </Route>
         </Route>
       </Routes>
