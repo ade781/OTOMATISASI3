@@ -65,6 +65,17 @@ const getBadanPublik = async (req, res) => {
       return res.status(404).json({ message: "Data tidak ditemukan" });
     }
 
+    if (req.user.role !== "admin") {
+      const assignment = await Assignment.findOne({
+        where: { user_id: req.user.id, badan_publik_id: id },
+      });
+      if (!assignment) {
+        return res
+          .status(403)
+          .json({ message: "Akses ditolak: badan publik ini tidak ditugaskan ke Anda" });
+      }
+    }
+
     return res.json(data);
   } catch (err) {
     console.error(err);
