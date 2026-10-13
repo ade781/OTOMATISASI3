@@ -5,16 +5,16 @@ services:
     container_name: db
     command: --default-authentication-plugin=mysql_native_password
     ports:
-      - "3306:3306"
+      - "${DB_PORT:-3306}:3306"
     environment:
-      MYSQL_DATABASE: oto2_db
-      MYSQL_USER: oto2_user
-      MYSQL_PASSWORD: oto2_pass
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ${DB_NAME:-oto2_db}
+      MYSQL_USER: ${DB_USERNAME:-oto2_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-oto2_pass}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_secure_pass}
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot" ]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USERNAME:-oto2_user}", "-p${DB_PASSWORD:-oto2_pass}" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -25,15 +25,15 @@ services:
     container_name: backend
     working_dir: /app
     ports:
-      - "5000:5000"
+      - "${PORT:-5000}:5000"
     env_file:
       - ./backend/.env
     environment:
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_NAME: oto2_db
-      DB_USERNAME: oto2_user
-      DB_PASSWORD: oto2_pass
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-oto2_db}
+      DB_USERNAME: ${DB_USERNAME:-oto2_user}
+      DB_PASSWORD: ${DB_PASSWORD:-oto2_pass}
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -48,7 +48,7 @@ services:
     container_name: frontend
     working_dir: /app
     ports:
-      - "5173:5173"
+      - "${FRONTEND_PORT:-5173}:5173"
     env_file:
       - ./frontend/.env
     volumes:
