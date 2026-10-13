@@ -6,13 +6,20 @@ import SmtpModal from './SmtpModal';
 
 const Layout = () => {
   const [showSmtpModal, setShowSmtpModal] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col ml-64">
-        <Navbar onOpenSmtp={() => setShowSmtpModal(true)} />
-        <main className="flex-1 px-8 py-6 overflow-y-auto">
+      <Sidebar
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
+      />
+      <div className="flex-1 flex flex-col md:ml-64 ml-0 transition-all duration-300 min-w-0">
+        <Navbar
+          onOpenSmtp={() => setShowSmtpModal(true)}
+          onToggleSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
+        />
+        <main className="flex-1 px-4 sm:px-8 py-6 overflow-y-auto">
           <Outlet />
         </main>
       </div>

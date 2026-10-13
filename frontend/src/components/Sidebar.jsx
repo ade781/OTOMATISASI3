@@ -20,7 +20,7 @@ const adminLinks = [
   { to: '/users', label: 'Tambah User', icon: 'users' }
 ];
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen = false, onClose }) => {
   const { user } = useAuth();
   const location = useLocation();
   const [pendingQuota, setPendingQuota] = useState(0);
@@ -151,81 +151,106 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="fixed inset-y-0 left-0 w-64 bg-gradient-to-b from-white via-white to-sand-50/80 backdrop-blur-xl border-r border-slate-200/60 shadow-[4px_0_24px_-2px_rgba(15,118,110,0.08)]">
-      {/* Decorative gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] via-transparent to-secondary/[0.03] pointer-events-none" />
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 md:hidden transition-opacity"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
 
-      {/* Logo Section */}
-      <div className="relative px-6 py-6 border-b border-slate-100/80">
-        <div className="flex items-center gap-3">
-          <img
-            src="/logo.png"
-            alt="Portal Keterbukaan Informasi"
-            className="h-10 w-auto max-w-[340px] object-contain drop-shadow-sm"
-          />
-        </div>
-        {/* Subtle accent line */}
-        <div className="absolute bottom-0 left-6 right-6 h-[2px] bg-gradient-to-r from-primary/40 via-secondary/30 to-transparent rounded-full" />
-      </div>
+      <aside
+        className={`fixed inset-y-0 left-0 w-64 bg-gradient-to-b from-white via-white to-sand-50/80 backdrop-blur-xl border-r border-slate-200/60 shadow-[4px_0_24px_-2px_rgba(15,118,110,0.08)] z-50 transition-transform duration-300 md:translate-x-0 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Decorative gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.02] via-transparent to-secondary/[0.03] pointer-events-none" />
 
-      {/* Navigation */}
-      <nav className="relative px-3 py-4 space-y-1 overflow-y-auto max-h-[calc(100vh-120px)] pb-6 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-        {links.map((item, index) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              `group relative flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive
-                ? 'bg-gradient-to-r from-primary to-primary/90 text-white shadow-lg shadow-primary/25 scale-[1.02]'
-                : 'text-slate-600 hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100/80 hover:text-slate-900 hover:shadow-sm'
-              }`
-            }
+        {/* Logo Section */}
+        <div className="relative px-6 py-6 border-b border-slate-100/80 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt="Portal Keterbukaan Informasi"
+              className="h-10 w-auto max-w-[200px] object-contain drop-shadow-sm"
+            />
+          </div>
+          {/* Close button on mobile */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+            aria-label="Close sidebar"
           >
-            {({ isActive }) => (
-              <>
-                {/* Active indicator bar */}
-                {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white/90 rounded-r-full shadow-sm" />
-                )}
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          {/* Subtle accent line */}
+          <div className="absolute bottom-0 left-6 right-6 h-[2px] bg-gradient-to-r from-primary/40 via-secondary/30 to-transparent rounded-full" />
+        </div>
 
-                {/* Icon with dynamic styling */}
-                <span className={`flex-shrink-0 transition-colors duration-200 ${isActive
-                    ? 'text-white/90'
-                    : 'text-slate-400 group-hover:text-primary'
-                  }`}>
-                  {renderIcon(item.icon)}
-                </span>
+        {/* Navigation */}
+        <nav className="relative px-3 py-4 space-y-1 overflow-y-auto max-h-[calc(100vh-120px)] pb-6 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+          {links.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={() => onClose?.()}
+              className={({ isActive }) =>
+                `group relative flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${isActive
+                  ? 'bg-gradient-to-r from-primary to-primary/90 text-white shadow-lg shadow-primary/25 scale-[1.02]'
+                  : 'text-slate-600 hover:bg-gradient-to-r hover:from-slate-50 hover:to-slate-100/80 hover:text-slate-900 hover:shadow-sm'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  {/* Active indicator bar */}
+                  {isActive && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-white/90 rounded-r-full shadow-sm" />
+                  )}
 
-                {/* Label */}
-                <span className="text-sm flex-1 truncate">{item.label}</span>
-
-                {/* Notification badge for pending quota */}
-                {item.to === '/penugasan' && pendingQuota > 0 && location.pathname !== '/penugasan' && (
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 shadow-lg" />
+                  {/* Icon with dynamic styling */}
+                  <span className={`flex-shrink-0 transition-colors duration-200 ${isActive
+                      ? 'text-white/90'
+                      : 'text-slate-400 group-hover:text-primary'
+                    }`}>
+                    {renderIcon(item.icon)}
                   </span>
-                )}
 
-                {/* Hover arrow indicator */}
-                {!isActive && (
-                  <svg
-                    className="w-4 h-4 text-slate-300 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                )}
-              </>
-            )}
-          </NavLink>
-        ))}
-      </nav>
+                  {/* Label */}
+                  <span className="text-sm flex-1 truncate">{item.label}</span>
 
+                  {/* Notification badge for pending quota */}
+                  {item.to === '/penugasan' && pendingQuota > 0 && location.pathname !== '/penugasan' && (
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 shadow-lg" />
+                    </span>
+                  )}
 
-    </aside>
+                  {/* Hover arrow indicator */}
+                  {!isActive && (
+                    <svg
+                      className="w-4 h-4 text-slate-300 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  )}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+      </aside>
+    </>
   );
 };
 
