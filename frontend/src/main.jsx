@@ -4,13 +4,16 @@ import './index.css';
 import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext';
 import { SmtpProvider } from './context/SmtpContext';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <AuthProvider>
-      <SmtpProvider>
-        <App />
-      </SmtpProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <SmtpProvider>
+          <App />
+        </SmtpProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   </StrictMode>
 );
