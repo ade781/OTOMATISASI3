@@ -458,11 +458,11 @@ const streamEmailLogs = async (req, res) => {
     "Connection": "keep-alive",
     "X-Accel-Buffering": "no", // Disable nginx buffering
   });
-  
+
   // Disable timeout untuk SSE
   req.socket.setKeepAlive(true);
   req.socket.setTimeout(0);
-  
+
   res.flushHeaders?.();
 
   // Send initial connection message
@@ -546,6 +546,16 @@ const retryEmail = async (req, res) => {
         .json({ message: "Tidak boleh retry log user lain" });
     }
 
+    const user = await User.findByPk(log.user_id);
+    if (!user) {
+      return res.status(404).json({ message: "User tidak ditemukan" });
+    }
+
+    const quotaCheck = await checkUserQuota(user, 1);
+    if (!quotaCheck.valid) {
+      return res.status(400).json({ message: quotaCheck.message });
+    }
+
     const smtpConfig = await SmtpConfig.findOne({
       where: { user_id: log.user_id },
     });
@@ -557,7 +567,7 @@ const retryEmail = async (req, res) => {
     const smtpVerification = await verifySmtpConnection(transporter);
     if (!smtpVerification.success) {
       return res.status(400).json({
-        message: "SMTP tidak valid saat retry",
+        message: "SMTP saat ini tidak valid saat retry",
         detail: smtpVerification.detail,
       });
     }
@@ -577,9 +587,17 @@ const retryEmail = async (req, res) => {
       to: badan.email,
       subject: log.subject,
       html: log.body,
-      text: log.body,
+      text: log.body.replace(/<[^>]+>/g, " "),
       attachments: safeAttachments,
     });
+
+    await badan.update({
+      sent_count: (badan.sent_count || 0) + 1,
+      status: badan.status === "selesai" ? "selesai" : "belum dibalas",
+    });
+
+    user.used_today += 1;
+    await user.save();
 
     const newLog = await createEmailLog({
       user_id: log.user_id,
