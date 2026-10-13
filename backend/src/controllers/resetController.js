@@ -15,6 +15,7 @@ import {
   UjiAksesQuestion,
   UjiAksesOption,
 } from "../models/index.js";
+import { seedUjiAksesQuestions } from "../utils/seedUjiAksesQuestions.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -52,8 +53,11 @@ const resetDatabase = async (req, res) => {
     await transaction.commit();
     clearUploadsDir();
 
+    // Re-seed default questions so questionnaire remains functional
+    await seedUjiAksesQuestions({ force: true });
+
     return res.json({
-      message: "Reset database berhasil. Semua data dihapus kecuali user admin.",
+      message: "Reset database berhasil. Semua data dihapus kecuali user admin, dan kuesioner default dipulihkan.",
       deleted: results,
     });
   } catch (err) {
