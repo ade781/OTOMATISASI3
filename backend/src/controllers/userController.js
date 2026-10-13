@@ -5,6 +5,7 @@ import {
   SmtpConfig,
   EmailLog,
   QuotaRequest,
+  UjiAksesReport,
 } from "../models/index.js";
 
 // Constants
@@ -37,6 +38,7 @@ const deleteUserRelatedData = async (userIds) => {
     SmtpConfig.destroy({ where: { user_id: ids } }),
     QuotaRequest.destroy({ where: { user_id: ids } }),
     EmailLog.destroy({ where: { user_id: ids } }),
+    UjiAksesReport.destroy({ where: { user_id: ids } }),
   ]);
 };
 
