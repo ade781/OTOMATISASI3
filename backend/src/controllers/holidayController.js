@@ -1,17 +1,9 @@
-import { Op } from "sequelize";
 import { Holiday } from "../models/index.js";
 
 const getTodayDate = () => new Date().toISOString().slice(0, 10);
 
 const listHolidays = async (req, res) => {
   try {
-    const today = getTodayDate();
-
-    // Hapus libur yang sudah lewat
-    await Holiday.destroy({
-      where: { date: { [Op.lt]: today } },
-    });
-
     const holidays = await Holiday.findAll({
       order: [["date", "ASC"]],
     });
@@ -45,7 +37,7 @@ const createHoliday = async (req, res) => {
         .json({ message: "Tanggal ini sudah terdaftar sebagai libur" });
     }
 
-    const holiday = await Holiday.create({ date, name });
+    const holiday = await Holiday.create({ date, name: name.trim() });
     return res.status(201).json(holiday);
   } catch (err) {
     console.error(err);
