@@ -14,6 +14,7 @@ import {
   getMyReportByBadanPublik
 } from '../controllers/ujiAksesReportController.js';
 import { requireCsrfForUnsafeMethods } from '../middleware/requireCsrf.js';
+import { UjiAksesReport } from '../models/index.js';
 
 const router = express.Router();
 
@@ -68,7 +69,25 @@ router.get('/by-badan/:badanPublikId', getMyReportByBadanPublik);
 router.get('/:id', getReportDetail);
 router.post('/', createReport);
 router.patch('/:id/submit', submitReport);
-router.post('/:id/upload', upload.array('files', MAX_FILES), uploadEvidence);
+const authorizeReportUpload = async (req, res, next) => {
+  try {
+    const reportId = req.params.id;
+    const report = await UjiAksesReport.findByPk(reportId);
+    if (!report) {
+      return res.status(404).json({ message: "Laporan tidak ditemukan" });
+    }
+    if (req.user.role !== "admin" && report.user_id !== req.user.id) {
+      return res
+        .status(403)
+        .json({ message: "Akses ditolak: bukan laporan milik Anda" });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+router.post('/:id/upload', authorizeReportUpload, upload.array('files', MAX_FILES), uploadEvidence);
 router.delete('/:id/evidence', deleteEvidence);
 
 // Error handler for multer
