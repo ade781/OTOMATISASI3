@@ -171,7 +171,6 @@ app.use(requestLogger);
 
 // SANITIZE SEMUA INPUT
 app.use(sanitizeMiddleware);
-app.use(sanitizeQueryParams);
 app.get("/health", (req, res) => res.json({ status: "ok" }));
 app.get("/", (req, res) => {
   res.json({
